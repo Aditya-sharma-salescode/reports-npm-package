@@ -1,0 +1,43 @@
+// Datastream API — report data, filters, hierarchy, downloads
+const DATASTREAM_URLS: Record<string, string> = {
+  prod: 'https://datastream.salescode.ai',
+  demo: 'https://datastream-demo.salescode.ai',
+  uat: 'https://datastream-uat.salescode.ai',
+};
+
+// Host API — task-based downloads (PDF/GSTR/Custom), distributor meta
+const HOST_URLS: Record<string, string> = {
+  prod: 'https://prod.salescode.ai',
+  demo: 'https://demo.salescode.ai',
+  uat: 'https://uat.salescode.ai',
+};
+
+// Report service — file download by key
+const REPORT_URLS: Record<string, string> = {
+  prod: 'https://reportsprod.salescode.ai',
+  demo: 'https://reportsdemo.salescode.ai',
+  uat: 'https://uat.salescode.ai',
+};
+
+/**
+ * Derives environment from accountId stored in localStorage.
+ * Contains "uat" → uat | contains "demo" → demo | else → prod
+ */
+export function getEnv(): string {
+  const accountId = (localStorage.getItem('accountId') || '').toLowerCase();
+  if (accountId.includes('uat')) return 'uat';
+  if (accountId.includes('demo')) return 'demo';
+  return 'prod';
+}
+
+export function getDatastreamBaseUrl(): string {
+  return DATASTREAM_URLS[getEnv()] ?? DATASTREAM_URLS.prod;
+}
+
+export function getHostBaseUrl(): string {
+  return HOST_URLS[getEnv()] ?? HOST_URLS.prod;
+}
+
+export function getReportBaseUrl(): string {
+  return REPORT_URLS[getEnv()] ?? REPORT_URLS.prod;
+}

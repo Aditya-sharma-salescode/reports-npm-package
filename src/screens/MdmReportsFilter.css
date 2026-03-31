@@ -1,0 +1,129 @@
+.sc-filter-screen {
+  min-height: 100vh;
+  background: #f9fafb;
+}
+
+.sc-filter-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 24px;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.sc-filter-back-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  color: #374151;
+  transition: background 0.15s;
+}
+
+.sc-filter-back-btn:hover {
+  background: #f3f4f6;
+}
+
+.sc-filter-header-title {
+  flex: 1;
+}
+
+.sc-filter-header-title h1 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+}
+
+.sc-filter-header-title p {
+  font-size: 12px;
+  color: #6b7280;
+  margin: 2px 0 0 0;
+}
+
+.sc-filter-header-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.sc-filter-body {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sc-filter-section-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 16px 20px;
+}
+
+.sc-filter-section-card h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 12px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sc-btn {
+  padding: 8px 20px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+}
+
+.sc-btn-primary {
+  background: #6366f1;
+  color: #fff;
+}
+
+.sc-btn-primary:hover {
+  background: #4f46e5;
+}
+
+.sc-btn-primary:disabled {
+  background: #a5b4fc;
+  cursor: not-allowed;
+}
+
+.sc-btn-secondary {
+  background: #fff;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+.sc-btn-secondary:hover {
+  background: #f3f4f6;
+}
+
+.sc-btn-success {
+  background: #059669;
+  color: #fff;
+}
+
+.sc-btn-success:hover {
+  background: #047857;
+}
+
+.sc-filter-custom-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}

@@ -1,0 +1,49 @@
+{
+  "name": "@salescode/reports-ui",
+  "version": "1.0.0",
+  "description": "Plug-and-play reports UI module — config in, full reports flow out.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "lint": "eslint src --ext .ts,.tsx",
+    "preview": "vite preview"
+  },
+  "peerDependencies": {
+    "react": "^18",
+    "react-dom": "^18",
+    "@mui/material": "^5",
+    "@mui/x-data-grid": "^6",
+    "@mui/x-date-pickers": "^6",
+    "@mui/icons-material": "^5",
+    "@fortawesome/react-fontawesome": "^0.2",
+    "@fortawesome/free-solid-svg-icons": "^6",
+    "dayjs": "^1",
+    "axios": "^1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@vitejs/plugin-react": "^4.2.0",
+    "typescript": "^5.2.2",
+    "vite": "^5.0.0",
+    "vite-plugin-dts": "^3.6.0"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "dayjs": "^1.11.10"
+  },
+  "keywords": ["reports", "salescode", "react", "npm-package"],
+  "license": "MIT"
+}

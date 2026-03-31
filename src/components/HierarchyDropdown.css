@@ -1,0 +1,110 @@
+.sc-hierarchy-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.sc-hierarchy-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  color: #374151;
+  min-height: 36px;
+  transition: border-color 0.15s;
+  user-select: none;
+}
+
+.sc-hierarchy-trigger:hover {
+  border-color: #6366f1;
+}
+
+.sc-hierarchy-trigger.active {
+  border-color: #6366f1;
+  background: #eef2ff;
+  color: #4338ca;
+  font-weight: 500;
+}
+
+.sc-hierarchy-trigger.open {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99,102,241,0.15);
+}
+
+.sc-hierarchy-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 1300;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.13);
+  min-width: 340px;
+  max-width: 500px;
+  overflow: hidden;
+}
+
+.sc-hierarchy-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.sc-hierarchy-panel-close {
+  cursor: pointer;
+  color: #9ca3af;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.sc-hierarchy-panel-close:hover {
+  color: #374151;
+}
+
+.sc-hierarchy-panel-body {
+  padding: 12px 16px;
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.sc-hierarchy-panel-footer {
+  padding: 10px 16px;
+  border-top: 1px solid #f3f4f6;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.sc-hierarchy-btn {
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  color: #374151;
+}
+
+.sc-hierarchy-btn.primary {
+  background: #6366f1;
+  color: #fff;
+  border-color: #6366f1;
+}
+
+.sc-hierarchy-btn.primary:hover {
+  background: #4f46e5;
+}
+
+.sc-hierarchy-btn:hover {
+  background: #f3f4f6;
+}
