@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
-import { fetchReportData, fetchColumnDefinitions } from '../services/reportsDataService';
+import { fetchReportData, fetchColumnDefinitions, type ReportSearchParams } from '../services/reportsDataService';
 import { isMergedFilterForReport, getMergedFilterSources } from '../services/mdmCustomFiltersService';
 import { buildLocationFilters, buildUserFilters } from '../services/mdmReportsDownloadService';
 import type { newReportConfig } from '../types/mdmReportsUtils';
@@ -147,31 +147,30 @@ export function MdmReportsPreview({
           new Set(['distributor_code', ...customFilters.map(f => f.alias)])
         );
 
-        const requestParams: Record<string, unknown> = {
-          getAPI: reportConfig.getAPI,
+        let since: string | undefined;
+        let until: string | undefined;
+
+        if (reportConfig.dateRangeFilter) {
+          since = new Date(Date.UTC(
+            fromDate.year(), fromDate.month(), fromDate.date() - 1, 18, 30, 0
+          )).toISOString().replace(/\.\d{3}Z$/, 'Z');
+          until = new Date(Date.UTC(
+            toDate.year(), toDate.month(), toDate.date(), 18, 29, 59
+          )).toISOString().replace(/\.\d{3}Z$/, 'Z');
+        }
+
+        const requestParams: ReportSearchParams = {
           report: reportConfig.reportName,
           page: p,
           pageSize: PAGE_SIZE,
           contains: searchText || undefined,
           filters: Object.keys(apiFilters).length > 0 ? apiFilters : undefined,
-          commaSeparatedFilters,
           distributorFilter: distributorFilterPayload,
+          since,
+          until,
         };
 
-        if (reportConfig.dateRangeFilter) {
-          const fromDateDayjs = fromDate;
-          const toDateDayjs = toDate;
-          const fromISO = new Date(Date.UTC(
-            fromDateDayjs.year(), fromDateDayjs.month(), fromDateDayjs.date() - 1, 18, 30, 0
-          )).toISOString().replace(/\.\d{3}Z$/, 'Z');
-          const toISO = new Date(Date.UTC(
-            toDateDayjs.year(), toDateDayjs.month(), toDateDayjs.date(), 18, 29, 59
-          )).toISOString().replace(/\.\d{3}Z$/, 'Z');
-          requestParams.since = fromISO;
-          requestParams.until = toISO;
-        }
-
-        const data = await fetchReportData(requestParams as Parameters<typeof fetchReportData>[0]);
+        const data = await fetchReportData(requestParams);
 
         if (requestId === lastRequestIdRef.current) {
           const items = data?.items ?? data?.data ?? [];

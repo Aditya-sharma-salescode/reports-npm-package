@@ -592,7 +592,7 @@
   to   { transform: translateX(0); opacity: 1; }
 }
 
-/* ─── Shared button base ─────────────────────────────────────────────────────── */
+
 .sc-btn {
   display: inline-flex;
   align-items: center;
