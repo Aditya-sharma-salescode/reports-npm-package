@@ -3,7 +3,7 @@
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
   },
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Plug-and-play reports UI module — config in, full reports flow out.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -16,7 +16,9 @@
       "types": "./dist/index.d.ts"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
@@ -47,6 +49,11 @@
     "axios": "^1.6.0",
     "dayjs": "^1.11.10"
   },
-  "keywords": ["reports", "salescode", "react", "npm-package"],
+  "keywords": [
+    "reports",
+    "salescode",
+    "react",
+    "npm-package"
+  ],
   "license": "MIT"
 }
