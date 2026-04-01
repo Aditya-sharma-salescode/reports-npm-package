@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type { Dayjs } from 'dayjs';
-import { fetchReportData, fetchColumnDefinitions } from '../services/reportsDataService';
+import { fetchReportData, fetchColumnDefinitions, type ReportSearchParams } from '../services/reportsDataService';
 import { isMergedFilterForReport, getMergedFilterSources } from '../services/mdmCustomFiltersService';
 import { buildLocationFilters, buildUserFilters } from '../services/mdmReportsDownloadService';
 import type { newReportConfig } from '../types/mdmReportsUtils';
@@ -142,7 +142,7 @@ export function MdmReportsPreview({
           new Set(['distributor_code', ...customFilters.map(f => f.alias)])
         );
 
-        const requestParams: Record<string, unknown> = {
+        const requestParams: ReportSearchParams & Record<string, unknown> = {
           getAPI: reportConfig.getAPI,
           report: reportConfig.reportName,
           page: p,
@@ -163,7 +163,7 @@ export function MdmReportsPreview({
           requestParams.until = toISO;
         }
 
-        const data = await fetchReportData(requestParams as Parameters<typeof fetchReportData>[0]);
+        const data = await fetchReportData(requestParams);
 
         if (requestId === lastRequestIdRef.current) {
           const items = data?.items ?? data?.data ?? [];
