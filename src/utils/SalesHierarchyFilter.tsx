@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { SalesHierarchyFilter as SalesHierarchyFilterConfig } from '../types/mdmReportsUtils';
 import { fetchUsersByDesignation } from '../services/reportsDataService';
-import '../screens/MdmReportsFilter.css';
+import '../components/HierarchyDropdown.css';
 
 interface SalesHierarchyFilterProps {
   config: SalesHierarchyFilterConfig;

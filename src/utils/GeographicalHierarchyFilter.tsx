@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import type { GeographicalHierarchyFilter as GeoConfig } from '../types/mdmReportsUtils';
 import { fetchGeographicalLevels, fetchGeographicalLocations } from '../services/reportsDataService';
-import '../screens/MdmReportsFilter.css';
+import '../components/HierarchyDropdown.css';
 
 interface GeographicalHierarchyFilterProps {
   config: GeoConfig;

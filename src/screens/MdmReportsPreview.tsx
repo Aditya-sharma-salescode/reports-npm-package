@@ -18,6 +18,9 @@ interface MdmReportsPreviewProps {
   geoDrillDownPath: DrillDownPathItem[];
   primaryFilter: 'sales' | 'geographical' | 'distributor' | null;
   customFilters: FilterOption[];
+  showPreview?: boolean;
+  noPreviewText?: string;
+  isNoPreviewReport?: boolean;
 }
 
 export function MdmReportsPreview({
@@ -28,6 +31,9 @@ export function MdmReportsPreview({
   salesDrillDownPath,
   geoDrillDownPath,
   customFilters,
+  showPreview = true,
+  noPreviewText = 'Select filters to generate report',
+  isNoPreviewReport = false,
 }: MdmReportsPreviewProps) {
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [columns, setColumns] = useState<ColumnOption[]>([]);
@@ -157,7 +163,7 @@ export function MdmReportsPreview({
           requestParams.until = toISO;
         }
 
-        const data = await fetchReportData(requestParams as unknown as Parameters<typeof fetchReportData>[0]);
+        const data = await fetchReportData(requestParams as Parameters<typeof fetchReportData>[0]);
 
         if (requestId === lastRequestIdRef.current) {
           const items = data?.items ?? data?.data ?? [];
@@ -216,6 +222,30 @@ export function MdmReportsPreview({
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  const fileIcon = (
+    <svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="#bbb" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+      <polyline points="14 2 14 8 20 8"/>
+      <line x1="16" y1="13" x2="8" y2="13"/>
+      <line x1="16" y1="17" x2="8" y2="17"/>
+      <polyline points="10 9 9 9 8 9"/>
+    </svg>
+  );
+
+  // Not showing preview — show empty/no-preview state
+  if (!showPreview) {
+    return (
+      <div className="sc-preview-container">
+        <div className="sc-preview-empty-state-full">
+          <div className="sc-preview-empty-icon">{fileIcon}</div>
+          <h5 className="sc-preview-empty-title">
+            {isNoPreviewReport ? noPreviewText : 'Select filters to generate report'}
+          </h5>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="sc-preview-container">
       {/* Data Table */}
@@ -227,17 +257,9 @@ export function MdmReportsPreview({
           </div>
         ) : rows.length === 0 ? (
           <div className="sc-preview-empty-state">
-            <div className="sc-preview-empty-icon">
-              <svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="#bbb" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14 2 14 8 20 8"/>
-                <line x1="16" y1="13" x2="8" y2="13"/>
-                <line x1="16" y1="17" x2="8" y2="17"/>
-                <polyline points="10 9 9 9 8 9"/>
-              </svg>
-            </div>
-            <h5 className="sc-preview-empty-title">No data to display</h5>
-            <p className="sc-preview-empty-sub">Apply filters and click Preview to load data</p>
+            <div className="sc-preview-empty-icon">{fileIcon}</div>
+            <h5 className="sc-preview-empty-title">No data found</h5>
+            <p className="sc-preview-empty-sub">Try adjusting your filters or date range</p>
           </div>
         ) : (
           <div className="sc-preview-table-scroll">
