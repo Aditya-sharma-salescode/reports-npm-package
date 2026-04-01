@@ -3,7 +3,7 @@
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
   },
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "Plug-and-play reports UI module — config in, full reports flow out.",
   "type": "module",
   "main": "./dist/index.cjs",
