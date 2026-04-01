@@ -157,7 +157,7 @@ export function MdmReportsPreview({
           requestParams.until = toISO;
         }
 
-        const data = await fetchReportData(requestParams as unknown as Parameters<typeof fetchReportData>[0]);
+        const data = await fetchReportData(requestParams as Parameters<typeof fetchReportData>[0]);
 
         if (requestId === lastRequestIdRef.current) {
           const items = data?.items ?? data?.data ?? [];

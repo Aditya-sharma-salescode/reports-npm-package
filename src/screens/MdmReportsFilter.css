@@ -122,11 +122,9 @@
   flex: 1;
   align-items: center;
   gap: 6px;
-  flex-wrap: nowrap;
-  overflow-x: auto;
+  flex-wrap: wrap;
   min-width: 0;
 }
-.sc-filter-bar::-webkit-scrollbar { display: none; }
 
 .sc-filter-actions {
   display: flex;

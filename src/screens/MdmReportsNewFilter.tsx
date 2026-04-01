@@ -322,7 +322,11 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
                   config={geoConfig}
                   selectedLevel={geoLevel}
                   selectedValues={geoValues}
-                  onApply={(level, values) => { setGeoLevel(level); setGeoValues(values); setGeoOpen(false); }}
+                  onApply={(level, values) => {
+                    setGeoLevel(level); setGeoValues(values); setGeoOpen(false);
+                    // Clear sales hierarchy — mutually exclusive
+                    setSalesLevel(null); setSalesValues([]);
+                  }}
                   onReset={() => { setGeoLevel(null); setGeoValues([]); }}
                   onClose={() => setGeoOpen(false)}
                 />
@@ -350,7 +354,11 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
                   config={salesConfig}
                   selectedLevel={salesLevel}
                   selectedValues={salesValues}
-                  onApply={(level, values) => { setSalesLevel(level); setSalesValues(values); setSalesOpen(false); }}
+                  onApply={(level, values) => {
+                    setSalesLevel(level); setSalesValues(values); setSalesOpen(false);
+                    // Clear geography hierarchy — mutually exclusive
+                    setGeoLevel(null); setGeoValues([]);
+                  }}
                   onReset={() => { setSalesLevel(null); setSalesValues([]); }}
                   onClose={() => setSalesOpen(false)}
                 />
