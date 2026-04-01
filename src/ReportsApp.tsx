@@ -11,14 +11,14 @@ interface ReportsAppProps {
 }
 
 /**
- * ReportsApp — the root component of the @salescode/reports-ui package.
+ * ReportsApp — root component of the @salescode/reports-ui package.
  *
- * The host app simply renders:
+ * Usage:
  *   <ReportsApp reportCards={reportCards} />
  *
- * Prerequisites (set before rendering):
+ * Prerequisites (set in localStorage before rendering):
  *   localStorage.authToken    — JWT access token
- *   localStorage.accountId   — Tenant ID (also used to detect env)
+ *   localStorage.accountId   — Tenant ID (used for env detection)
  *   localStorage.authContext  — JSON: { user: { loginId, email } }
  */
 export function ReportsApp({ reportCards }: ReportsAppProps) {
@@ -36,7 +36,13 @@ export function ReportsApp({ reportCards }: ReportsAppProps) {
   }
 
   return (
-    <div style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+    <div style={{
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      height: '100vh',
+      width: '100%',
+      overflow: 'hidden',
+      boxSizing: 'border-box',
+    }}>
       {screen === 'tiles' && (
         <ReportTiles reportCards={reportCards} onSelect={handleSelectReport} />
       )}

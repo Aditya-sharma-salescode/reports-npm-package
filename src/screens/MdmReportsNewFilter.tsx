@@ -19,7 +19,6 @@ interface MdmReportsNewFilterProps {
   onBack: () => void;
 }
 
-// Reports that cannot be previewed
 function isNoPreviewReport(config: newReportConfig) {
   return config.isLiveReport || config.isGSTRReport || config.isPDFReport || config.customDownload;
 }
@@ -61,7 +60,9 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
   // ── UI ────────────────────────────────────────────────────────────────────────
   const [showPreview, setShowPreview] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [downloadMenuOpen, setDownloadMenuOpen] = useState(false);
   const [notification, setNotification] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+  const downloadMenuRef = useRef<HTMLDivElement>(null);
 
   const noPreview = isNoPreviewReport(reportConfig);
   const salesConfig = reportConfig.salesHierarchyFilter;
@@ -73,6 +74,7 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
     const handler = (e: MouseEvent) => {
       if (salesRef.current && !salesRef.current.contains(e.target as Node)) setSalesOpen(false);
       if (geoRef.current && !geoRef.current.contains(e.target as Node)) setGeoOpen(false);
+      if (downloadMenuRef.current && !downloadMenuRef.current.contains(e.target as Node)) setDownloadMenuOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -86,7 +88,6 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
     if (reportConfig.showDistributorType || reportConfig.showDistributorDivision) {
       fetchDistributorMeta().then(setDistributorMeta).catch(console.error);
     }
-    // Load distributor options from meta
     if (distConfig?.enabled) {
       fetchDistributorMeta().then(meta => {
         setDistributorOptions(
@@ -133,7 +134,7 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
     setShowPreview(false);
   }
 
-  // ── Drill-down paths (flat: one level → multiple values) ──────────────────────
+  // ── Drill-down paths ──────────────────────────────────────────────────────────
   const salesDrillDownPath: DrillDownPathItem[] =
     salesLevel && salesValues.length > 0
       ? salesValues.map(v => ({ level: salesLevel, value: v }))
@@ -156,9 +157,8 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
     ...(selectedDistributors.length > 0 ? { distributor_code: selectedDistributors } : {}),
   };
 
-  // ── Chips ──────────────────────────────────────────────────────────────────────
+  // ── Chips ─────────────────────────────────────────────────────────────────────
   const chips: { key: string; value: string; onRemove: () => void }[] = [];
-
   if (selectedDistributors.length > 0) {
     for (const d of selectedDistributors) {
       chips.push({ key: 'Distributor', value: d, onRemove: () => setSelectedDistributors(p => p.filter(x => x !== d)) });
@@ -178,6 +178,7 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
   // ── Download ──────────────────────────────────────────────────────────────────
   async function handleDownload(format: string) {
     setDownloading(true);
+    setDownloadMenuOpen(false);
     try {
       await downloadReport({
         selectedReport: reportConfig,
@@ -199,9 +200,18 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
     }
   }
 
+  const noPreviewText =
+    reportConfig.isLiveReport
+      ? 'Live reports cannot be previewed. Kindly download the report to continue.'
+      : reportConfig.isPDFReport
+      ? 'PDF reports cannot be previewed. Kindly download the report to continue.'
+      : reportConfig.isGSTRReport
+      ? 'GSTR reports cannot be previewed. Kindly download the report to continue.'
+      : 'This report cannot be previewed. Kindly download the report to continue.';
+
   return (
     <div className="sc-report-page">
-      {/* Notification */}
+      {/* Notification toast */}
       {notification && (
         <div className={`sc-notification ${notification.type}`}>{notification.msg}</div>
       )}
@@ -209,19 +219,20 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
       {/* ── Header ── */}
       <div className="sc-report-header">
         <div className="sc-report-header-left">
-          <button className="sc-back-btn" onClick={onBack} aria-label="Back">←</button>
+          <button className="sc-back-btn" onClick={onBack} title="Back to reports">
+            ←
+          </button>
           <div className="sc-report-title">
             <h1>{reportConfig.name}</h1>
-            <span className="sc-title-arrow">⌄</span>
           </div>
         </div>
 
         <div className="sc-report-header-right">
-          {/* Date picker or GSTR picker */}
+          {/* Date picker / GSTR picker */}
           {reportConfig.isGSTRReport ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 12, color: '#94a3b8' }}>Period</span>
-              <span style={{ color: '#ef4444', fontSize: 12 }}>*</span>
+            <div className="sc-gstr-date-wrap">
+              <span className="sc-date-range-label">Period</span>
+              <span className="sc-date-range-asterisk">*</span>
               <GSTRMonthYearPicker
                 selectedMonth={gstrMonth}
                 selectedYear={gstrYear}
@@ -244,22 +255,43 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
             />
           )}
 
+          {/* Preview toggle */}
           {!noPreview && (
             <button
-              className="sc-btn-preview"
+              className={`sc-btn-preview${showPreview ? ' active' : ''}`}
               onClick={() => setShowPreview(v => !v)}
             >
               {showPreview ? 'Hide Preview' : 'Preview'}
             </button>
           )}
 
-          <button
-            className="sc-btn-download"
-            onClick={() => handleDownload('xlsx')}
-            disabled={downloading}
-          >
-            {downloading ? 'Downloading...' : '↓ Download'}
-          </button>
+          {/* Download with format menu */}
+          <div className="sc-download-wrap" ref={downloadMenuRef}>
+            <button
+              className="sc-btn-download"
+              onClick={() => setDownloadMenuOpen(v => !v)}
+              disabled={downloading}
+            >
+              {downloading ? (
+                <>
+                  <span className="sc-download-spinner" />
+                  Downloading...
+                </>
+              ) : (
+                <>↓ Download</>
+              )}
+            </button>
+            {downloadMenuOpen && !downloading && (
+              <div className="sc-download-menu">
+                <div className="sc-download-menu-item" onClick={() => handleDownload('xlsx')}>
+                  <span>📊</span> Excel (XLSX)
+                </div>
+                <div className="sc-download-menu-item" onClick={() => handleDownload('csv')}>
+                  <span>📄</span> CSV
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -308,7 +340,7 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
                 config={geoConfig}
                 selectedLevel={geoLevel}
                 selectedValues={geoValues}
-                onApply={(level, values) => { setGeoLevel(level); setGeoValues(values); }}
+                onApply={(level, values) => { setGeoLevel(level); setGeoValues(values); setGeoOpen(false); }}
                 onReset={() => { setGeoLevel(null); setGeoValues([]); }}
                 onClose={() => setGeoOpen(false)}
               />
@@ -336,7 +368,7 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
                 config={salesConfig}
                 selectedLevel={salesLevel}
                 selectedValues={salesValues}
-                onApply={(level, values) => { setSalesLevel(level); setSalesValues(values); }}
+                onApply={(level, values) => { setSalesLevel(level); setSalesValues(values); setSalesOpen(false); }}
                 onReset={() => { setSalesLevel(null); setSalesValues([]); }}
                 onClose={() => setSalesOpen(false)}
               />
@@ -357,10 +389,7 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
 
         <div className="sc-filter-bar-spacer" />
         <div className="sc-filter-separator" />
-
-        <button className="sc-reset-btn" onClick={handleReset}>
-          ↺ Reset
-        </button>
+        <button className="sc-reset-btn" onClick={handleReset}>↺ Reset</button>
       </div>
 
       {/* ── Filter Chips ── */}
@@ -386,9 +415,7 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
               options={customFilterOptions[filter.alias] ?? []}
               selected={customFilterSelections[filter.alias] ?? []}
               loading={customFilterLoading[filter.alias]}
-              onChange={values =>
-                setCustomFilterSelections(p => ({ ...p, [filter.alias]: values }))
-              }
+              onChange={values => setCustomFilterSelections(p => ({ ...p, [filter.alias]: values }))}
               placeholder={filter.display}
             />
           ))}
@@ -400,15 +427,7 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
         {noPreview ? (
           <div className="sc-empty-state">
             <div className="sc-empty-icon">📄</div>
-            <div className="sc-empty-text">
-              {reportConfig.isLiveReport
-                ? 'Live reports cannot be previewed. Kindly download the report to continue.'
-                : reportConfig.isPDFReport
-                ? 'PDF reports cannot be previewed. Kindly download the report to continue.'
-                : reportConfig.isGSTRReport
-                ? 'GSTR reports cannot be previewed. Kindly download the report to continue.'
-                : 'This report cannot be previewed. Kindly download the report to continue.'}
-            </div>
+            <div className="sc-empty-text">{noPreviewText}</div>
           </div>
         ) : !showPreview ? (
           <div className="sc-empty-state">
@@ -417,7 +436,6 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
           </div>
         ) : (
           <MdmReportsPreview
-            inline
             reportConfig={reportConfig}
             filters={allFilters}
             fromDate={fromDate}
@@ -426,9 +444,6 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
             geoDrillDownPath={geoDrillDownPath}
             primaryFilter={primaryFilter}
             customFilters={customFilters}
-            onBack={() => setShowPreview(false)}
-            onDownload={handleDownload}
-            downloading={downloading}
           />
         )}
       </div>

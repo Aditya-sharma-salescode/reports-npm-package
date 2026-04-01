@@ -1,36 +1,30 @@
+// TopFilterBar is kept for potential external use but the main filter screen
+// uses SalesHierarchyFilter / GeographicalHierarchyFilter directly.
+
 import React from 'react';
-import { HierarchyDropdown } from './HierarchyDropdown';
-import { SalesHierarchyFilter } from '../utils/SalesHierarchyFilter';
-import { GeographicalHierarchyFilter } from '../utils/GeographicalHierarchyFilter';
-import { DistributorFilter } from '../utils/DistributorFilter';
+import { CompactCheckboxDropdown } from './CompactCheckboxDropdown';
 import { DistributorFilters } from './DistributorFilters';
 import type { newReportConfig } from '../types/mdmReportsUtils';
-import type { DrillDownPathItem, DistributorFeature } from '../services/types';
-import { summarizeDrillDownPath } from '../utils/hierarchyHelpers';
+import type { DistributorFeature } from '../services/types';
 import './TopFilterBar.css';
 
 interface TopFilterBarProps {
   reportConfig: newReportConfig;
 
-  // Sales
-  salesDrillDownPath: DrillDownPathItem[];
+  // Sales — level + values
+  salesLevel: string | null;
   selectedSalesValues: string[];
-  onSalesPathChange: (path: DrillDownPathItem[]) => void;
-  onSalesValuesChange: (values: string[]) => void;
   onSalesReset: () => void;
 
-  // Geo
-  geoDrillDownPath: DrillDownPathItem[];
+  // Geo — level + values
+  geoLevel: string | null;
   selectedGeoValues: string[];
-  onGeoPathChange: (path: DrillDownPathItem[]) => void;
-  onGeoValuesChange: (values: string[]) => void;
   onGeoReset: () => void;
 
   // Distributor
   selectedDistributorValues: string[];
   onDistributorChange: (values: string[]) => void;
   allDistributors?: DistributorFeature[];
-  allowedDistributorLoginIds?: string[];
 
   // Distributor type / division
   distributorTypes?: string[];
@@ -43,20 +37,15 @@ interface TopFilterBarProps {
 
 export function TopFilterBar({
   reportConfig,
-  salesDrillDownPath,
+  salesLevel,
   selectedSalesValues,
-  onSalesPathChange,
-  onSalesValuesChange,
   onSalesReset,
-  geoDrillDownPath,
+  geoLevel,
   selectedGeoValues,
-  onGeoPathChange,
-  onGeoValuesChange,
   onGeoReset,
   selectedDistributorValues,
   onDistributorChange,
   allDistributors = [],
-  allowedDistributorLoginIds,
   distributorTypes = [],
   distributorDivisions = [],
   selectedDistributorTypes,
@@ -64,75 +53,38 @@ export function TopFilterBar({
   onDistributorTypeChange,
   onDistributorDivisionChange,
 }: TopFilterBarProps) {
-  const salesConfig = reportConfig.salesHierarchyFilter;
-  const geoConfig = reportConfig.geographicalHierarchyFilter;
   const distConfig = reportConfig.distributorFilter;
-
-  const salesSummary =
-    salesDrillDownPath.length > 0
-      ? summarizeDrillDownPath(salesDrillDownPath)
-          .map((s) => `${s.count} ${s.level}`)
-          .join(', ')
-      : undefined;
-
-  const geoSummary =
-    geoDrillDownPath.length > 0
-      ? summarizeDrillDownPath(geoDrillDownPath)
-          .map((s) => `${s.count} ${s.level}`)
-          .join(', ')
-      : undefined;
 
   return (
     <div className="sc-top-filter-bar">
-      {/* Sales Hierarchy */}
-      {salesConfig?.enabled && (
-        <HierarchyDropdown
-          label="Sales Hierarchy"
-          summaryText={salesSummary ? `Sales: ${salesSummary}` : 'Sales Hierarchy'}
-          isActive={salesDrillDownPath.length > 0}
-          onReset={onSalesReset}
-        >
-          <SalesHierarchyFilter
-            config={salesConfig}
-            drillDownPath={salesDrillDownPath}
-            onPathChange={onSalesPathChange}
-            onSelectedValuesChange={onSalesValuesChange}
-            selectedValues={selectedSalesValues}
-          />
-        </HierarchyDropdown>
+      {salesLevel && selectedSalesValues.length > 0 && (
+        <div className="sc-filter-section">
+          <span className="sc-filter-section-label">Sales: {salesLevel}</span>
+          <button onClick={onSalesReset} style={{ fontSize: 12, color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer' }}>
+            {selectedSalesValues.length} selected · Clear
+          </button>
+        </div>
       )}
 
-      {/* Geographical Hierarchy */}
-      {geoConfig?.enabled && (
-        <HierarchyDropdown
-          label="Geography"
-          summaryText={geoSummary ? `Geo: ${geoSummary}` : 'Geography'}
-          isActive={geoDrillDownPath.length > 0}
-          onReset={onGeoReset}
-        >
-          <GeographicalHierarchyFilter
-            config={geoConfig}
-            drillDownPath={geoDrillDownPath}
-            onPathChange={onGeoPathChange}
-            onSelectedValuesChange={onGeoValuesChange}
-            selectedValues={selectedGeoValues}
-          />
-        </HierarchyDropdown>
+      {geoLevel && selectedGeoValues.length > 0 && (
+        <div className="sc-filter-section">
+          <span className="sc-filter-section-label">Geo: {geoLevel}</span>
+          <button onClick={onGeoReset} style={{ fontSize: 12, color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer' }}>
+            {selectedGeoValues.length} selected · Clear
+          </button>
+        </div>
       )}
 
-      {/* Distributor */}
       {distConfig?.enabled && !reportConfig.isDistributorView && (
-        <DistributorFilter
-          config={distConfig}
-          isDistributorView={reportConfig.isDistributorView}
-          selectedValues={selectedDistributorValues}
+        <CompactCheckboxDropdown
+          label={distConfig.label}
+          options={allDistributors.map(f => ({ label: (f.name as string) || f.loginId, value: f.loginId }))}
+          selected={selectedDistributorValues}
           onChange={onDistributorChange}
-          allowedLoginIds={allowedDistributorLoginIds}
-          allDistributors={allDistributors}
+          placeholder={distConfig.label}
         />
       )}
 
-      {/* Distributor Type & Division */}
       <DistributorFilters
         showType={reportConfig.showDistributorType}
         showDivision={reportConfig.showDistributorDivision}
