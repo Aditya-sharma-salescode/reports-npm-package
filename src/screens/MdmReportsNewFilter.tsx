@@ -301,10 +301,12 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
         <div className="sc-report-header-right">
           {reportConfig.dateRangeFilter && (
             <div className="sc-date-wrap">
-              <span className="sc-date-range-label">
-                {reportConfig.isGSTRReport ? 'Month & Year' : 'Date Range'}
-              </span>
-              <span className="sc-date-range-asterisk">*</span>
+              {reportConfig.isGSTRReport && (
+                <>
+                  <span className="sc-date-range-label">Month & Year</span>
+                  <span className="sc-date-range-asterisk">*</span>
+                </>
+              )}
               {reportConfig.isGSTRReport ? (
                 <GSTRMonthYearPicker
                   key={dateFilterKey}
