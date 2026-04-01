@@ -16,6 +16,7 @@ interface CompactCheckboxDropdownProps {
   placeholder?: string;
   maxSelected?: number;
   disabled?: boolean;
+  selectAllLabel?: string;
 }
 
 export function CompactCheckboxDropdown({
@@ -28,12 +29,12 @@ export function CompactCheckboxDropdown({
   placeholder,
   maxSelected,
   disabled = false,
+  selectAllLabel,
 }: CompactCheckboxDropdownProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  // Close on outside click
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
@@ -45,13 +46,13 @@ export function CompactCheckboxDropdown({
   }, []);
 
   const filtered = search
-    ? options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase()))
+    ? options.filter(o => o.label.toLowerCase().includes(search.toLowerCase()))
     : options;
 
   const toggle = useCallback(
     (value: string) => {
       if (selected.includes(value)) {
-        onChange(selected.filter((v) => v !== value));
+        onChange(selected.filter(v => v !== value));
       } else {
         if (maxSelected && selected.length >= maxSelected) return;
         onChange([...selected, value]);
@@ -60,21 +61,28 @@ export function CompactCheckboxDropdown({
     [selected, onChange, maxSelected]
   );
 
+  const toggleAll = () => {
+    if (selected.length === options.length) {
+      onChange([]);
+    } else {
+      onChange(options.map(o => o.value));
+    }
+  };
+
   const triggerLabel =
     selected.length === 0
       ? placeholder ?? `Select ${label}`
       : selected.length === 1
-      ? options.find((o) => o.value === selected[0])?.label ?? selected[0]
+      ? options.find(o => o.value === selected[0])?.label ?? selected[0]
       : `${selected.length} selected`;
 
   return (
     <div className="sc-ccd-wrapper" ref={wrapperRef}>
       <div
         className={`sc-ccd-trigger${open ? ' open' : ''}${disabled ? ' disabled' : ''}`}
-        onClick={() => !disabled && setOpen((v) => !v)}
+        onClick={() => !disabled && setOpen(v => !v)}
         role="button"
         aria-expanded={open}
-        aria-label={label}
       >
         <span className={`sc-ccd-label${selected.length === 0 ? ' placeholder' : ''}`}>
           {triggerLabel}
@@ -93,7 +101,7 @@ export function CompactCheckboxDropdown({
                 type="text"
                 placeholder="Search..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={e => setSearch(e.target.value)}
                 autoFocus
               />
             </div>
@@ -101,24 +109,42 @@ export function CompactCheckboxDropdown({
           <div className="sc-ccd-options">
             {loading ? (
               <div className="sc-ccd-loading">Loading...</div>
-            ) : filtered.length === 0 ? (
-              <div className="sc-ccd-empty">No options</div>
             ) : (
-              filtered.map((opt) => (
-                <div
-                  key={opt.value}
-                  className={`sc-ccd-option${selected.includes(opt.value) ? ' selected' : ''}`}
-                  onClick={() => toggle(opt.value)}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selected.includes(opt.value)}
-                    onChange={() => toggle(opt.value)}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                  <span>{opt.label}</span>
-                </div>
-              ))
+              <>
+                {selectAllLabel && !search && (
+                  <div
+                    className={`sc-ccd-option${selected.length === options.length ? ' selected' : ''}`}
+                    onClick={toggleAll}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected.length === options.length}
+                      onChange={toggleAll}
+                      onClick={e => e.stopPropagation()}
+                    />
+                    <span>{selectAllLabel}</span>
+                  </div>
+                )}
+                {filtered.length === 0 ? (
+                  <div className="sc-ccd-empty">No options</div>
+                ) : (
+                  filtered.map(opt => (
+                    <div
+                      key={opt.value}
+                      className={`sc-ccd-option${selected.includes(opt.value) ? ' selected' : ''}`}
+                      onClick={() => toggle(opt.value)}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected.includes(opt.value)}
+                        onChange={() => toggle(opt.value)}
+                        onClick={e => e.stopPropagation()}
+                      />
+                      <span>{opt.label}</span>
+                    </div>
+                  ))
+                )}
+              </>
             )}
           </div>
           <div className="sc-ccd-footer">

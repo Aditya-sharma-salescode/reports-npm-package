@@ -1,177 +1,141 @@
-import React, { useEffect, useState } from 'react';
-import { CompactCheckboxDropdown } from '../components/CompactCheckboxDropdown';
+import React, { useEffect, useRef, useState } from 'react';
 import type { SalesHierarchyFilter as SalesHierarchyFilterConfig } from '../types/mdmReportsUtils';
-import type { DrillDownPathItem } from '../services/types';
-import { fetchSalesDesignations, fetchUsersByDesignation, fetchChildrenUsers } from '../services/reportsDataService';
-import { summarizeDrillDownPath } from './hierarchyHelpers';
+import { fetchUsersByDesignation } from '../services/reportsDataService';
+import '../screens/MdmReportsFilter.css';
 
 interface SalesHierarchyFilterProps {
   config: SalesHierarchyFilterConfig;
-  drillDownPath: DrillDownPathItem[];
-  onPathChange: (path: DrillDownPathItem[]) => void;
-  onSelectedValuesChange: (values: string[]) => void;
+  selectedLevel: string | null;
   selectedValues: string[];
-}
-
-interface LevelState {
-  designation: string;
-  options: { label: string; value: string }[];
-  selected: string[];
-  loading: boolean;
+  onApply: (level: string, values: string[]) => void;
+  onReset: () => void;
+  onClose: () => void;
 }
 
 export function SalesHierarchyFilter({
   config,
-  drillDownPath,
-  onPathChange,
-  onSelectedValuesChange,
+  selectedLevel,
   selectedValues,
+  onApply,
+  onReset,
+  onClose,
 }: SalesHierarchyFilterProps) {
-  const [levels, setLevels] = useState<LevelState[]>([]);
-  const [rootDesignations, setRootDesignations] = useState<{ label: string; value: string }[]>([]);
-  const [selectedRootDesignation, setSelectedRootDesignation] = useState<string>('');
-  const [rootLoading, setRootLoading] = useState(false);
+  const levels = config.hierarchyOrder ?? [];
+  const [activeLevel, setActiveLevel] = useState<string | null>(selectedLevel ?? (levels[0] || null));
+  const [levelValues, setLevelValues] = useState<Record<string, { label: string; value: string }[]>>({});
+  const [loadingLevel, setLoadingLevel] = useState<string | null>(null);
+  const [localValues, setLocalValues] = useState<string[]>(selectedValues);
+  const [search, setSearch] = useState('');
 
+  // Load values for initial active level
   useEffect(() => {
-    loadRootDesignations();
+    if (activeLevel) loadLevelValues(activeLevel);
   }, []);
 
-  async function loadRootDesignations() {
-    setRootLoading(true);
+  async function loadLevelValues(level: string) {
+    if (levelValues[level]) return;
+    setLoadingLevel(level);
     try {
-      const designations = await fetchSalesDesignations('root');
-      setRootDesignations(designations.map((d: string) => ({ label: d.toUpperCase(), value: d })));
-    } finally {
-      setRootLoading(false);
-    }
-  }
-
-  async function handleDesignationSelect(designation: string) {
-    setSelectedRootDesignation(designation);
-    const newLevel: LevelState = {
-      designation,
-      options: [],
-      selected: [],
-      loading: true,
-    };
-    setLevels([newLevel]);
-    onPathChange([]);
-    onSelectedValuesChange([]);
-
-    try {
-      const users = await fetchUsersByDesignation(designation);
-      setLevels([{
-        designation,
-        options: users.map((u) => ({ label: u.name || u.loginId, value: u.userId })),
-        selected: [],
-        loading: false,
-      }]);
+      const users = await fetchUsersByDesignation(level);
+      setLevelValues(prev => ({
+        ...prev,
+        [level]: users.map(u => ({ label: (u.name as string) || u.loginId, value: u.userId })),
+      }));
     } catch {
-      setLevels((prev) => prev.map((l, i) => i === 0 ? { ...l, loading: false } : l));
+      setLevelValues(prev => ({ ...prev, [level]: [] }));
+    } finally {
+      setLoadingLevel(null);
     }
   }
 
-  async function handleLevelSelectionChange(levelIndex: number, selected: string[]) {
-    // Update selection at this level
-    setLevels((prev) =>
-      prev.map((l, i) => i === levelIndex ? { ...l, selected } : i > levelIndex ? { ...l, selected: [], options: [] } : l).slice(0, levelIndex + 1)
+  function handleLevelClick(level: string) {
+    setActiveLevel(level);
+    setLocalValues([]);
+    setSearch('');
+    loadLevelValues(level);
+  }
+
+  function toggleValue(val: string) {
+    setLocalValues(prev =>
+      prev.includes(val) ? prev.filter(v => v !== val) : [...prev, val]
     );
-
-    // Update drill-down path: keep up to this level
-    const currentPath = drillDownPath.slice(0, levelIndex);
-    const currentLevel = levels[levelIndex];
-    const newPath: DrillDownPathItem[] = [
-      ...currentPath,
-      ...selected.map((v) => ({ level: currentLevel.designation, value: v })),
-    ];
-    onPathChange(newPath);
-    onSelectedValuesChange(selected);
-
-    // If single selection, load children
-    if (selected.length === 1) {
-      const hierarchyOrder = config.hierarchyOrder ?? [];
-      const currentIdx = hierarchyOrder.indexOf(currentLevel.designation);
-      const nextDesignation = currentIdx >= 0 && currentIdx < hierarchyOrder.length - 1
-        ? hierarchyOrder[currentIdx + 1]
-        : null;
-
-      if (nextDesignation) {
-        const childLevel: LevelState = {
-          designation: nextDesignation,
-          options: [],
-          selected: [],
-          loading: true,
-        };
-        setLevels((prev) => [...prev.slice(0, levelIndex + 1), childLevel]);
-        try {
-          const children = await fetchChildrenUsers(selected[0], nextDesignation);
-          setLevels((prev) =>
-            prev.map((l, i) =>
-              i === levelIndex + 1
-                ? {
-                    ...l,
-                    options: children.map((u) => ({ label: u.name || u.loginId, value: u.userId })),
-                    loading: false,
-                  }
-                : l
-            )
-          );
-        } catch {
-          setLevels((prev) =>
-            prev.map((l, i) => i === levelIndex + 1 ? { ...l, loading: false } : l)
-          );
-        }
-      }
-    }
   }
 
-  const summary = summarizeDrillDownPath(drillDownPath);
+  const currentOptions = activeLevel ? (levelValues[activeLevel] ?? []) : [];
+  const filteredLevels = search
+    ? levels.filter(l => l.toLowerCase().includes(search.toLowerCase()))
+    : levels;
+  const filteredValues = search
+    ? currentOptions.filter(o => o.label.toLowerCase().includes(search.toLowerCase()))
+    : currentOptions;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      {/* Root designation selector */}
-      <CompactCheckboxDropdown
-        label={config.levelFilterLabel}
-        options={rootDesignations}
-        selected={selectedRootDesignation ? [selectedRootDesignation] : []}
-        onChange={(vals) => {
-          if (vals[0]) handleDesignationSelect(vals[0]);
-          else {
-            setSelectedRootDesignation('');
-            setLevels([]);
-            onPathChange([]);
-            onSelectedValuesChange([]);
-          }
-        }}
-        loading={rootLoading}
-        searchable={false}
-        maxSelected={1}
-        placeholder={config.levelFilterLabel}
-      />
-
-      {/* Drill-down levels */}
-      {levels.map((level, idx) => (
-        <CompactCheckboxDropdown
-          key={`${level.designation}-${idx}`}
-          label={`${level.designation.toUpperCase()} Values`}
-          options={level.options}
-          selected={level.selected}
-          onChange={(vals) => handleLevelSelectionChange(idx, vals)}
-          loading={level.loading}
-          placeholder={`Select ${level.designation.toUpperCase()}`}
+    <div className="sc-hierarchy-popup" onClick={e => e.stopPropagation()}>
+      <div className="sc-hierarchy-popup-search">
+        <input
+          placeholder="Search"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          autoFocus
         />
-      ))}
+      </div>
 
-      {/* Summary */}
-      {summary.length > 0 && (
-        <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>
-          {summary.map((s) => (
-            <span key={s.level} style={{ marginRight: 8 }}>
-              {s.count} {s.level}{s.count > 1 ? 's' : ''} selected
-            </span>
+      <div className="sc-hierarchy-popup-body">
+        {/* Left: levels */}
+        <div className="sc-hierarchy-levels-col">
+          {filteredLevels.map(level => (
+            <div
+              key={level}
+              className={`sc-hierarchy-level-item${activeLevel === level ? ' active' : ''}`}
+              onClick={() => handleLevelClick(level)}
+            >
+              {level}
+            </div>
           ))}
         </div>
-      )}
+
+        {/* Right: values */}
+        <div className="sc-hierarchy-values-col">
+          {!activeLevel ? (
+            <div className="sc-hierarchy-empty">Select a level from the left</div>
+          ) : loadingLevel === activeLevel ? (
+            <div className="sc-hierarchy-loading">Loading...</div>
+          ) : filteredValues.length === 0 ? (
+            <div className="sc-hierarchy-empty">No options available</div>
+          ) : (
+            filteredValues.map(opt => (
+              <div
+                key={opt.value}
+                className="sc-hierarchy-value-item"
+                onClick={() => toggleValue(opt.value)}
+              >
+                <input
+                  type="checkbox"
+                  checked={localValues.includes(opt.value)}
+                  onChange={() => toggleValue(opt.value)}
+                  onClick={e => e.stopPropagation()}
+                />
+                {opt.label}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className="sc-hierarchy-popup-footer">
+        <button className="sc-btn-reset-sm" onClick={() => { onReset(); onClose(); }}>
+          Reset
+        </button>
+        <button
+          className="sc-btn-apply-sm"
+          onClick={() => {
+            if (activeLevel) onApply(activeLevel, localValues);
+            onClose();
+          }}
+        >
+          Apply
+        </button>
+      </div>
     </div>
   );
 }

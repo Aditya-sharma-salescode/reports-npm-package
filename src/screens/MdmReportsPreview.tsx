@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Dayjs } from 'dayjs';
 import { fetchReportData, fetchColumnDefinitions } from '../services/reportsDataService';
 import type { newReportConfig } from '../types/mdmReportsUtils';
@@ -18,6 +18,8 @@ interface MdmReportsPreviewProps {
   customFilters: FilterOption[];
   onBack: () => void;
   onDownload: (format: string) => void;
+  /** When true, renders as inline panel (no own header/back button) */
+  inline?: boolean;
   downloading?: boolean;
 }
 

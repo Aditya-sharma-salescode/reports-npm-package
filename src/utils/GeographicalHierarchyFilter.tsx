@@ -1,186 +1,153 @@
 import React, { useEffect, useState } from 'react';
-import { CompactCheckboxDropdown } from '../components/CompactCheckboxDropdown';
 import type { GeographicalHierarchyFilter as GeoConfig } from '../types/mdmReportsUtils';
-import type { DrillDownPathItem } from '../services/types';
-import {
-  fetchGeographicalLevels,
-  fetchGeographicalLocations,
-  fetchGeographicalLocationsUnder,
-} from '../services/reportsDataService';
-import { summarizeDrillDownPath } from './hierarchyHelpers';
+import { fetchGeographicalLevels, fetchGeographicalLocations } from '../services/reportsDataService';
+import '../screens/MdmReportsFilter.css';
 
 interface GeographicalHierarchyFilterProps {
   config: GeoConfig;
-  drillDownPath: DrillDownPathItem[];
-  onPathChange: (path: DrillDownPathItem[]) => void;
-  onSelectedValuesChange: (values: string[]) => void;
+  selectedLevel: string | null;
   selectedValues: string[];
-}
-
-interface LevelState {
-  level: string;
-  options: { label: string; value: string }[];
-  selected: string[];
-  loading: boolean;
+  onApply: (level: string, values: string[]) => void;
+  onReset: () => void;
+  onClose: () => void;
 }
 
 export function GeographicalHierarchyFilter({
   config,
-  drillDownPath,
-  onPathChange,
-  onSelectedValuesChange,
+  selectedLevel,
   selectedValues,
+  onApply,
+  onReset,
+  onClose,
 }: GeographicalHierarchyFilterProps) {
-  const [availableLevels, setAvailableLevels] = useState<string[]>([]);
-  const [levelsLoading, setLevelsLoading] = useState(false);
-  const [selectedRootLevel, setSelectedRootLevel] = useState<string>('');
-  const [levels, setLevels] = useState<LevelState[]>([]);
+  const [levels, setLevels] = useState<string[]>(config.hierarchyOrder ?? []);
+  const [activeLevel, setActiveLevel] = useState<string | null>(selectedLevel ?? null);
+  const [levelValues, setLevelValues] = useState<Record<string, { label: string; value: string }[]>>({});
+  const [loadingLevel, setLoadingLevel] = useState<string | null>(null);
+  const [localValues, setLocalValues] = useState<string[]>(selectedValues);
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
-    loadLevels();
+    if (!config.hierarchyOrder || config.hierarchyOrder.length === 0) {
+      fetchGeographicalLevels().then(l => {
+        setLevels(l);
+        if (!activeLevel && l.length > 0) {
+          setActiveLevel(l[0]);
+          loadLevelValues(l[0]);
+        }
+      });
+    } else if (activeLevel) {
+      loadLevelValues(activeLevel);
+    } else if (levels.length > 0) {
+      setActiveLevel(levels[0]);
+      loadLevelValues(levels[0]);
+    }
   }, []);
 
-  async function loadLevels() {
-    setLevelsLoading(true);
-    try {
-      const fromApi = await fetchGeographicalLevels();
-      // Use config hierarchyOrder if provided, otherwise use API order
-      const order = config.hierarchyOrder ?? fromApi;
-      setAvailableLevels(order);
-    } finally {
-      setLevelsLoading(false);
-    }
-  }
-
-  async function handleRootLevelSelect(level: string) {
-    setSelectedRootLevel(level);
-    setLevels([{ level, options: [], selected: [], loading: true }]);
-    onPathChange([]);
-    onSelectedValuesChange([]);
-
+  async function loadLevelValues(level: string) {
+    if (levelValues[level]) return;
+    setLoadingLevel(level);
     try {
       const locations = await fetchGeographicalLocations(level);
-      setLevels([{
-        level,
-        options: locations.map((l) => ({ label: l.label || l.value, value: l.value })),
-        selected: [],
-        loading: false,
-      }]);
+      setLevelValues(prev => ({
+        ...prev,
+        [level]: locations.map(l => ({ label: l.label || l.value, value: l.value })),
+      }));
     } catch {
-      setLevels((prev) => prev.map((l, i) => i === 0 ? { ...l, loading: false } : l));
+      setLevelValues(prev => ({ ...prev, [level]: [] }));
+    } finally {
+      setLoadingLevel(null);
     }
   }
 
-  async function handleLevelSelectionChange(levelIndex: number, selected: string[]) {
-    setLevels((prev) =>
-      prev
-        .map((l, i) => (i === levelIndex ? { ...l, selected } : i > levelIndex ? { ...l, selected: [], options: [] } : l))
-        .slice(0, levelIndex + 1)
+  function handleLevelClick(level: string) {
+    setActiveLevel(level);
+    setLocalValues([]);
+    setSearch('');
+    loadLevelValues(level);
+  }
+
+  function toggleValue(val: string) {
+    setLocalValues(prev =>
+      prev.includes(val) ? prev.filter(v => v !== val) : [...prev, val]
     );
-
-    const currentLevel = levels[levelIndex];
-    const newPath: DrillDownPathItem[] = [
-      ...drillDownPath.slice(0, levelIndex),
-      ...selected.map((v) => ({ level: currentLevel.level, value: v })),
-    ];
-    onPathChange(newPath);
-    onSelectedValuesChange(selected);
-
-    // Drill down if single selection
-    if (selected.length === 1) {
-      const hierarchyOrder = config.hierarchyOrder ?? availableLevels;
-      const currentIdx = hierarchyOrder.indexOf(currentLevel.level);
-      const nextLevel =
-        currentIdx >= 0 && currentIdx < hierarchyOrder.length - 1
-          ? hierarchyOrder[currentIdx + 1]
-          : null;
-
-      if (nextLevel) {
-        const childLevel: LevelState = {
-          level: nextLevel,
-          options: [],
-          selected: [],
-          loading: true,
-        };
-        setLevels((prev) => [...prev.slice(0, levelIndex + 1), childLevel]);
-        try {
-          const locations = await fetchGeographicalLocationsUnder(
-            currentLevel.level,
-            selected[0],
-            nextLevel
-          );
-          setLevels((prev) =>
-            prev.map((l, i) =>
-              i === levelIndex + 1
-                ? {
-                    ...l,
-                    options: locations.map((loc) => ({
-                      label: loc.label || loc.value,
-                      value: loc.value,
-                    })),
-                    loading: false,
-                  }
-                : l
-            )
-          );
-        } catch {
-          setLevels((prev) =>
-            prev.map((l, i) => (i === levelIndex + 1 ? { ...l, loading: false } : l))
-          );
-        }
-      }
-    }
   }
 
-  const levelOptions = (config.hierarchyOrder ?? availableLevels).map((l) => ({
-    label: l.charAt(0).toUpperCase() + l.slice(1),
-    value: l,
-  }));
-
-  const summary = summarizeDrillDownPath(drillDownPath);
+  const currentOptions = activeLevel ? (levelValues[activeLevel] ?? []) : [];
+  const filteredLevels = search
+    ? levels.filter(l => l.toLowerCase().includes(search.toLowerCase()))
+    : levels;
+  const filteredValues = search
+    ? currentOptions.filter(o => o.label.toLowerCase().includes(search.toLowerCase()))
+    : currentOptions;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <CompactCheckboxDropdown
-        label={config.levelFilterLabel}
-        options={levelOptions}
-        selected={selectedRootLevel ? [selectedRootLevel] : []}
-        onChange={(vals) => {
-          if (vals[0]) handleRootLevelSelect(vals[0]);
-          else {
-            setSelectedRootLevel('');
-            setLevels([]);
-            onPathChange([]);
-            onSelectedValuesChange([]);
-          }
-        }}
-        loading={levelsLoading}
-        searchable={false}
-        maxSelected={1}
-        placeholder={config.levelFilterLabel}
-      />
-
-      {levels.map((level, idx) => (
-        <CompactCheckboxDropdown
-          key={`${level.level}-${idx}`}
-          label={`${level.level.charAt(0).toUpperCase() + level.level.slice(1)} Values`}
-          options={level.options}
-          selected={level.selected}
-          onChange={(vals) => handleLevelSelectionChange(idx, vals)}
-          loading={level.loading}
-          placeholder={`Select ${level.level}`}
+    <div className="sc-hierarchy-popup" onClick={e => e.stopPropagation()}>
+      <div className="sc-hierarchy-popup-search">
+        <input
+          placeholder="Search"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          autoFocus
         />
-      ))}
+      </div>
 
-      {summary.length > 0 && (
-        <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>
-          {summary.map((s) => (
-            <span key={s.level} style={{ marginRight: 8 }}>
-              {s.count} {s.level}{s.count > 1 ? 's' : ''} selected
-            </span>
+      <div className="sc-hierarchy-popup-body">
+        {/* Left: levels */}
+        <div className="sc-hierarchy-levels-col">
+          {filteredLevels.map(level => (
+            <div
+              key={level}
+              className={`sc-hierarchy-level-item${activeLevel === level ? ' active' : ''}`}
+              onClick={() => handleLevelClick(level)}
+            >
+              {level}
+            </div>
           ))}
         </div>
-      )}
+
+        {/* Right: values */}
+        <div className="sc-hierarchy-values-col">
+          {!activeLevel ? (
+            <div className="sc-hierarchy-empty">Select a level from the left</div>
+          ) : loadingLevel === activeLevel ? (
+            <div className="sc-hierarchy-loading">Loading...</div>
+          ) : filteredValues.length === 0 ? (
+            <div className="sc-hierarchy-empty">No options available</div>
+          ) : (
+            filteredValues.map(opt => (
+              <div
+                key={opt.value}
+                className="sc-hierarchy-value-item"
+                onClick={() => toggleValue(opt.value)}
+              >
+                <input
+                  type="checkbox"
+                  checked={localValues.includes(opt.value)}
+                  onChange={() => toggleValue(opt.value)}
+                  onClick={e => e.stopPropagation()}
+                />
+                {opt.label}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className="sc-hierarchy-popup-footer">
+        <button className="sc-btn-reset-sm" onClick={() => { onReset(); onClose(); }}>
+          Reset
+        </button>
+        <button
+          className="sc-btn-apply-sm"
+          onClick={() => {
+            if (activeLevel) onApply(activeLevel, localValues);
+            onClose();
+          }}
+        >
+          Apply
+        </button>
+      </div>
     </div>
   );
 }
