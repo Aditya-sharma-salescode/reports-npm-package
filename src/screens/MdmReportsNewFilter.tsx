@@ -24,40 +24,40 @@ function isNoPreviewReport(config: newReportConfig) {
 }
 
 export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilterProps) {
-  // ── Sales hierarchy ──────────────────────────────────────────────────────────
+  // ── Sales hierarchy ─────────────────────────────────────────────────────────
   const [salesLevel, setSalesLevel] = useState<string | null>(null);
   const [salesValues, setSalesValues] = useState<string[]>([]);
   const [salesOpen, setSalesOpen] = useState(false);
   const salesRef = useRef<HTMLDivElement>(null);
 
-  // ── Geo hierarchy ─────────────────────────────────────────────────────────────
+  // ── Geo hierarchy ────────────────────────────────────────────────────────────
   const [geoLevel, setGeoLevel] = useState<string | null>(null);
   const [geoValues, setGeoValues] = useState<string[]>([]);
   const [geoOpen, setGeoOpen] = useState(false);
   const geoRef = useRef<HTMLDivElement>(null);
 
-  // ── Distributor ──────────────────────────────────────────────────────────────
+  // ── Distributor ─────────────────────────────────────────────────────────────
   const [selectedDistributors, setSelectedDistributors] = useState<string[]>([]);
   const [distributorOptions, setDistributorOptions] = useState<{ label: string; value: string }[]>([]);
 
-  // ── Distributor type / division ───────────────────────────────────────────────
+  // ── Distributor type / division ──────────────────────────────────────────────
   const [distributorMeta, setDistributorMeta] = useState<DistributorMeta | null>(null);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [selectedDivisions, setSelectedDivisions] = useState<string[]>([]);
 
-  // ── Custom filters ───────────────────────────────────────────────────────────
+  // ── Custom filters ──────────────────────────────────────────────────────────
   const [customFilters, setCustomFilters] = useState<FilterOption[]>([]);
   const [customFilterOptions, setCustomFilterOptions] = useState<Record<string, { label: string; value: string }[]>>({});
   const [customFilterLoading, setCustomFilterLoading] = useState<Record<string, boolean>>({});
   const [customFilterSelections, setCustomFilterSelections] = useState<Record<string, string[]>>({});
 
-  // ── Date ─────────────────────────────────────────────────────────────────────
+  // ── Date ────────────────────────────────────────────────────────────────────
   const [fromDate, setFromDate] = useState<Dayjs>(dayjs().subtract(30, 'day').startOf('day'));
   const [toDate, setToDate] = useState<Dayjs>(dayjs().endOf('day'));
   const [gstrMonth, setGstrMonth] = useState<number | null>(null);
   const [gstrYear, setGstrYear] = useState<number | null>(null);
 
-  // ── UI ────────────────────────────────────────────────────────────────────────
+  // ── UI ───────────────────────────────────────────────────────────────────────
   const [showPreview, setShowPreview] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [downloadMenuOpen, setDownloadMenuOpen] = useState(false);
@@ -69,7 +69,30 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
   const geoConfig = reportConfig.geographicalHierarchyFilter;
   const distConfig = reportConfig.distributorFilter;
 
-  // ── Close dropdowns on outside click ─────────────────────────────────────────
+  const salesDrillDownPath: DrillDownPathItem[] =
+    salesLevel && salesValues.length > 0
+      ? salesValues.map(v => ({ level: salesLevel, value: v }))
+      : [];
+
+  const geoDrillDownPath: DrillDownPathItem[] =
+    geoLevel && geoValues.length > 0
+      ? geoValues.map(v => ({ level: geoLevel, value: v }))
+      : [];
+
+  const primaryFilter: 'sales' | 'geographical' | 'distributor' | null =
+    geoValues.length > 0 ? 'geographical'
+    : salesValues.length > 0 ? 'sales'
+    : selectedDistributors.length > 0 ? 'distributor'
+    : null;
+
+  const hasFilters =
+    salesValues.length > 0 || geoValues.length > 0 ||
+    selectedDistributors.length > 0 || reportConfig.isDistributorView;
+
+  const isPreviewDisabled = !hasFilters;
+  const isDownloadDisabled = !hasFilters;
+
+  // ── Close dropdowns on outside click ────────────────────────────────────────
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (salesRef.current && !salesRef.current.contains(e.target as Node)) setSalesOpen(false);
@@ -80,7 +103,7 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // ── Load on mount ─────────────────────────────────────────────────────────────
+  // ── Load on mount ────────────────────────────────────────────────────────────
   useEffect(() => {
     if (reportConfig.shouldShowCustomFilters) {
       loadCustomFiltersForReport(reportConfig).then(setCustomFilters);
@@ -134,48 +157,45 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
     setShowPreview(false);
   }
 
-  // ── Drill-down paths ──────────────────────────────────────────────────────────
-  const salesDrillDownPath: DrillDownPathItem[] =
-    salesLevel && salesValues.length > 0
-      ? salesValues.map(v => ({ level: salesLevel, value: v }))
-      : [];
-
-  const geoDrillDownPath: DrillDownPathItem[] =
-    geoLevel && geoValues.length > 0
-      ? geoValues.map(v => ({ level: geoLevel, value: v }))
-      : [];
-
-  const primaryFilter: 'sales' | 'geographical' | 'distributor' | null =
-    geoValues.length > 0 ? 'geographical'
-    : salesValues.length > 0 ? 'sales'
-    : selectedDistributors.length > 0 ? 'distributor'
-    : null;
-
-  // ── Combined filters map ──────────────────────────────────────────────────────
+  // ── Combined filters map ─────────────────────────────────────────────────────
   const allFilters: Record<string, string[]> = {
     ...customFilterSelections,
     ...(selectedDistributors.length > 0 ? { distributor_code: selectedDistributors } : {}),
   };
 
-  // ── Chips ─────────────────────────────────────────────────────────────────────
-  const chips: { key: string; value: string; onRemove: () => void }[] = [];
+  // ── Filter chips ─────────────────────────────────────────────────────────────
+  type Chip = { key: string; label: string; value: string; count?: number; onRemove: () => void };
+  const chips: Chip[] = [];
+
   if (selectedDistributors.length > 0) {
-    for (const d of selectedDistributors) {
-      chips.push({ key: 'Distributor', value: d, onRemove: () => setSelectedDistributors(p => p.filter(x => x !== d)) });
-    }
+    chips.push({
+      key: 'distributor',
+      label: 'Distributor',
+      value: selectedDistributors[0],
+      count: selectedDistributors.length > 1 ? selectedDistributors.length - 1 : undefined,
+      onRemove: () => setSelectedDistributors([]),
+    });
   }
   if (geoLevel && geoValues.length > 0) {
-    for (const v of geoValues) {
-      chips.push({ key: geoLevel, value: v, onRemove: () => { setGeoLevel(null); setGeoValues([]); } });
-    }
+    chips.push({
+      key: 'geo',
+      label: geoLevel,
+      value: geoValues[0],
+      count: geoValues.length > 1 ? geoValues.length - 1 : undefined,
+      onRemove: () => { setGeoLevel(null); setGeoValues([]); },
+    });
   }
   if (salesLevel && salesValues.length > 0) {
-    for (const v of salesValues) {
-      chips.push({ key: salesLevel, value: v, onRemove: () => { setSalesLevel(null); setSalesValues([]); } });
-    }
+    chips.push({
+      key: 'sales',
+      label: salesLevel,
+      value: salesValues[0],
+      count: salesValues.length > 1 ? salesValues.length - 1 : undefined,
+      onRemove: () => { setSalesLevel(null); setSalesValues([]); },
+    });
   }
 
-  // ── Download ──────────────────────────────────────────────────────────────────
+  // ── Download ─────────────────────────────────────────────────────────────────
   async function handleDownload(format: string) {
     setDownloading(true);
     setDownloadMenuOpen(false);
@@ -201,37 +221,32 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
   }
 
   const noPreviewText =
-    reportConfig.isLiveReport
-      ? 'Live reports cannot be previewed. Kindly download the report to continue.'
-      : reportConfig.isPDFReport
-      ? 'PDF reports cannot be previewed. Kindly download the report to continue.'
-      : reportConfig.isGSTRReport
-      ? 'GSTR reports cannot be previewed. Kindly download the report to continue.'
-      : 'This report cannot be previewed. Kindly download the report to continue.';
+    reportConfig.isLiveReport ? 'Live reports cannot be previewed. Kindly download the report to continue.'
+    : reportConfig.isPDFReport ? 'PDF reports cannot be previewed. Kindly download the report to continue.'
+    : reportConfig.isGSTRReport ? 'GSTR reports cannot be previewed. Kindly download the report to continue.'
+    : 'This report cannot be previewed. Kindly download the report to continue.';
 
   return (
     <div className="sc-report-page">
-      {/* Notification toast */}
+      {/* Toast */}
       {notification && (
         <div className={`sc-notification ${notification.type}`}>{notification.msg}</div>
       )}
 
-      {/* ── Header ── */}
+      {/* ── Row 1: Back + Title + Date picker ── */}
       <div className="sc-report-header">
         <div className="sc-report-header-left">
-          <button className="sc-back-btn" onClick={onBack} title="Back to reports">
-            ←
-          </button>
+          <button className="sc-back-btn" onClick={onBack} title="Back">←</button>
           <div className="sc-report-title">
             <h1>{reportConfig.name}</h1>
+            <span className="sc-title-chevron">▾</span>
           </div>
         </div>
 
         <div className="sc-report-header-right">
-          {/* Date picker / GSTR picker */}
           {reportConfig.isGSTRReport ? (
             <div className="sc-gstr-date-wrap">
-              <span className="sc-date-range-label">Period</span>
+              <span className="sc-date-range-label">Month & Year</span>
               <span className="sc-date-range-asterisk">*</span>
               <GSTRMonthYearPicker
                 selectedMonth={gstrMonth}
@@ -245,167 +260,178 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
                 yearsRange={reportConfig.gstrYearsRange ?? 3}
               />
             </div>
-          ) : (
-            <NewDateFilter
-              fromDate={fromDate}
-              toDate={toDate}
-              onFromChange={setFromDate}
-              onToChange={setToDate}
-              dateRangeAllowed={reportConfig.dateRangeAllowed}
+          ) : reportConfig.dateRangeFilter ? (
+            <div className="sc-gstr-date-wrap">
+              <span className="sc-date-range-label">Date Range</span>
+              <span className="sc-date-range-asterisk">*</span>
+              <NewDateFilter
+                fromDate={fromDate}
+                toDate={toDate}
+                onFromChange={setFromDate}
+                onToChange={setToDate}
+                dateRangeAllowed={reportConfig.dateRangeAllowed}
+              />
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      {/* ── Row 2: Filter bar + Preview + Download ── */}
+      <div className="sc-filter-bar-row">
+        <div className="sc-filter-bar">
+          {/* Distributor Type */}
+          {reportConfig.showDistributorType && distributorMeta && (
+            <CompactCheckboxDropdown
+              label="Distributor Type"
+              options={distributorMeta.types.map(t => ({ label: t, value: t }))}
+              selected={selectedTypes}
+              onChange={setSelectedTypes}
+              placeholder="Distributor Type"
+              selectAllLabel="Select all types"
             />
           )}
 
-          {/* Preview toggle */}
+          {/* Distributor Division */}
+          {reportConfig.showDistributorDivision && distributorMeta && (
+            <CompactCheckboxDropdown
+              label="Distributor Division"
+              options={distributorMeta.divisions.map(d => ({ label: d, value: d }))}
+              selected={selectedDivisions}
+              onChange={setSelectedDivisions}
+              placeholder="Distributor Division"
+            />
+          )}
+
+          {/* Geography */}
+          {geoConfig?.enabled && (
+            <div className="sc-hierarchy-filter-wrapper" ref={geoRef}>
+              <span
+                className={`sc-radio-indicator${geoValues.length > 0 ? ' active' : ''}`}
+                onClick={() => { setGeoLevel(null); setGeoValues([]); }}
+                title="Clear geography filter"
+              />
+              <div
+                className={`sc-dropdown-trigger${geoOpen ? ' open' : ''}${geoValues.length > 0 ? ' active' : ''}${salesValues.length > 0 ? ' disabled' : ''}`}
+                onClick={() => salesValues.length === 0 && setGeoOpen(v => !v)}
+              >
+                <span>Geography</span>
+                <span className="sc-dropdown-chevron">▾</span>
+              </div>
+              {geoOpen && (
+                <GeographicalHierarchyFilter
+                  config={geoConfig}
+                  selectedLevel={geoLevel}
+                  selectedValues={geoValues}
+                  onApply={(level, values) => { setGeoLevel(level); setGeoValues(values); setGeoOpen(false); }}
+                  onReset={() => { setGeoLevel(null); setGeoValues([]); }}
+                  onClose={() => setGeoOpen(false)}
+                />
+              )}
+            </div>
+          )}
+
+          {/* Sales Hierarchy */}
+          {salesConfig?.enabled && (
+            <div className="sc-hierarchy-filter-wrapper" ref={salesRef}>
+              <span
+                className={`sc-radio-indicator${salesValues.length > 0 ? ' active' : ''}`}
+                onClick={() => { setSalesLevel(null); setSalesValues([]); }}
+                title="Clear sales filter"
+              />
+              <div
+                className={`sc-dropdown-trigger${salesOpen ? ' open' : ''}${salesValues.length > 0 ? ' active' : ''}${geoValues.length > 0 ? ' disabled' : ''}`}
+                onClick={() => geoValues.length === 0 && setSalesOpen(v => !v)}
+              >
+                <span>Sales Hierarchy</span>
+                <span className="sc-dropdown-chevron">▾</span>
+              </div>
+              {salesOpen && (
+                <SalesHierarchyFilter
+                  config={salesConfig}
+                  selectedLevel={salesLevel}
+                  selectedValues={salesValues}
+                  onApply={(level, values) => { setSalesLevel(level); setSalesValues(values); setSalesOpen(false); }}
+                  onReset={() => { setSalesLevel(null); setSalesValues([]); }}
+                  onClose={() => setSalesOpen(false)}
+                />
+              )}
+            </div>
+          )}
+
+          {/* Distributor */}
+          {distConfig?.enabled && !reportConfig.isDistributorView && (
+            <CompactCheckboxDropdown
+              label="Distributor"
+              options={distributorOptions}
+              selected={selectedDistributors}
+              onChange={setSelectedDistributors}
+              placeholder="Select Distributor"
+            />
+          )}
+
+          {/* Reset */}
+          <button className="sc-reset-btn" onClick={handleReset}>↺ Reset</button>
+        </div>
+
+        {/* Action buttons */}
+        <div className="sc-filter-actions">
+          {/* Preview — only for non-live/pdf/gstr */}
           {!noPreview && (
             <button
-              className={`sc-btn-preview${showPreview ? ' active' : ''}`}
+              className="sc-btn-preview"
               onClick={() => setShowPreview(v => !v)}
+              disabled={isPreviewDisabled}
             >
               {showPreview ? 'Hide Preview' : 'Preview'}
             </button>
           )}
 
-          {/* Download with format menu */}
+          {/* Download */}
           <div className="sc-download-wrap" ref={downloadMenuRef}>
             <button
               className="sc-btn-download"
-              onClick={() => setDownloadMenuOpen(v => !v)}
-              disabled={downloading}
+              onClick={() => !downloading && setDownloadMenuOpen(v => !v)}
+              disabled={downloading || isDownloadDisabled}
             >
               {downloading ? (
-                <>
-                  <span className="sc-download-spinner" />
-                  Downloading...
-                </>
+                <><span className="sc-download-spinner" />Downloading...</>
               ) : (
                 <>↓ Download</>
               )}
             </button>
             {downloadMenuOpen && !downloading && (
               <div className="sc-download-menu">
-                <div className="sc-download-menu-item" onClick={() => handleDownload('xlsx')}>
-                  <span>📊</span> Excel (XLSX)
-                </div>
-                <div className="sc-download-menu-item" onClick={() => handleDownload('csv')}>
-                  <span>📄</span> CSV
-                </div>
+                {reportConfig.isPDFReport ? (
+                  <div className="sc-download-menu-item" onClick={() => handleDownload('pdf')}>PDF</div>
+                ) : reportConfig.isGSTRReport || reportConfig.customDownload ? (
+                  <div className="sc-download-menu-item" onClick={() => handleDownload('xlsx')}>XLS</div>
+                ) : (
+                  <>
+                    <div className="sc-download-menu-item" onClick={() => handleDownload('csv')}>CSV</div>
+                    <div className="sc-download-menu-item" onClick={() => handleDownload('xlsx')}>XLS</div>
+                  </>
+                )}
               </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* ── Filter Bar ── */}
-      <div className="sc-filter-bar">
-        {/* Distributor Type */}
-        {reportConfig.showDistributorType && distributorMeta && (
-          <CompactCheckboxDropdown
-            label="Distributor Type"
-            options={distributorMeta.types.map(t => ({ label: t, value: t }))}
-            selected={selectedTypes}
-            onChange={setSelectedTypes}
-            placeholder="Distributor Type"
-            selectAllLabel="Select all types"
-          />
-        )}
-
-        {/* Distributor Division */}
-        {reportConfig.showDistributorDivision && distributorMeta && (
-          <CompactCheckboxDropdown
-            label="Distributor Division"
-            options={distributorMeta.divisions.map(d => ({ label: d, value: d }))}
-            selected={selectedDivisions}
-            onChange={setSelectedDivisions}
-            placeholder="Distributor Division"
-          />
-        )}
-
-        {/* Geography */}
-        {geoConfig?.enabled && (
-          <div className="sc-hierarchy-filter-wrapper" ref={geoRef}>
-            <span
-              className={`sc-radio-indicator${geoValues.length > 0 ? ' active' : ''}`}
-              onClick={() => { setGeoLevel(null); setGeoValues([]); }}
-              title="Clear geography filter"
-            />
-            <div
-              className={`sc-dropdown-trigger${geoOpen ? ' open' : ''}${geoValues.length > 0 ? ' active' : ''}${salesValues.length > 0 ? ' disabled' : ''}`}
-              onClick={() => salesValues.length === 0 && setGeoOpen(v => !v)}
-            >
-              <span>Geography</span>
-              <span className="sc-dropdown-chevron">▾</span>
-            </div>
-            {geoOpen && (
-              <GeographicalHierarchyFilter
-                config={geoConfig}
-                selectedLevel={geoLevel}
-                selectedValues={geoValues}
-                onApply={(level, values) => { setGeoLevel(level); setGeoValues(values); setGeoOpen(false); }}
-                onReset={() => { setGeoLevel(null); setGeoValues([]); }}
-                onClose={() => setGeoOpen(false)}
-              />
-            )}
-          </div>
-        )}
-
-        {/* Sales Hierarchy */}
-        {salesConfig?.enabled && (
-          <div className="sc-hierarchy-filter-wrapper" ref={salesRef}>
-            <span
-              className={`sc-radio-indicator${salesValues.length > 0 ? ' active' : ''}`}
-              onClick={() => { setSalesLevel(null); setSalesValues([]); }}
-              title="Clear sales filter"
-            />
-            <div
-              className={`sc-dropdown-trigger${salesOpen ? ' open' : ''}${salesValues.length > 0 ? ' active' : ''}${geoValues.length > 0 ? ' disabled' : ''}`}
-              onClick={() => geoValues.length === 0 && setSalesOpen(v => !v)}
-            >
-              <span>Sales Hierarchy</span>
-              <span className="sc-dropdown-chevron">▾</span>
-            </div>
-            {salesOpen && (
-              <SalesHierarchyFilter
-                config={salesConfig}
-                selectedLevel={salesLevel}
-                selectedValues={salesValues}
-                onApply={(level, values) => { setSalesLevel(level); setSalesValues(values); setSalesOpen(false); }}
-                onReset={() => { setSalesLevel(null); setSalesValues([]); }}
-                onClose={() => setSalesOpen(false)}
-              />
-            )}
-          </div>
-        )}
-
-        {/* Distributor */}
-        {distConfig?.enabled && !reportConfig.isDistributorView && (
-          <CompactCheckboxDropdown
-            label="Distributor"
-            options={distributorOptions}
-            selected={selectedDistributors}
-            onChange={setSelectedDistributors}
-            placeholder="Select Distributor"
-          />
-        )}
-
-        <div className="sc-filter-bar-spacer" />
-        <div className="sc-filter-separator" />
-        <button className="sc-reset-btn" onClick={handleReset}>↺ Reset</button>
-      </div>
-
-      {/* ── Filter Chips ── */}
+      {/* ── Row 3: Filter chips ── */}
       {chips.length > 0 && (
         <div className="sc-filter-chips">
-          {chips.map((chip, i) => (
-            <span key={i} className="sc-chip">
-              <span className="sc-chip-key">{chip.key}: </span>
-              <span>{chip.value}</span>
+          {chips.map((chip) => (
+            <span key={chip.key} className="sc-chip">
+              <span className="sc-chip-key">{chip.label}: </span>
+              <strong>{chip.value || '--'}</strong>
+              {chip.count !== undefined && chip.count > 0 && ` +${chip.count}`}
               <span className="sc-chip-remove" onClick={chip.onRemove}>×</span>
             </span>
           ))}
         </div>
       )}
 
-      {/* ── Custom filters row ── */}
+      {/* ── Row 4: Custom filters (if any) ── */}
       {reportConfig.shouldShowCustomFilters && customFilters.length > 0 && (
         <div className="sc-custom-filters-row">
           {customFilters.map(filter => (
@@ -422,17 +448,33 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
         </div>
       )}
 
-      {/* ── Content Area ── */}
+      {/* ── Content: DataGrid or empty state ── */}
       <div className="sc-report-content">
         {noPreview ? (
           <div className="sc-empty-state">
-            <div className="sc-empty-icon">📄</div>
-            <div className="sc-empty-text">{noPreviewText}</div>
+            <div className="sc-empty-icon">
+              <svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="#bbb" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10 9 9 9 8 9"/>
+              </svg>
+            </div>
+            <h5 className="sc-empty-text">{noPreviewText}</h5>
           </div>
         ) : !showPreview ? (
           <div className="sc-empty-state">
-            <div className="sc-empty-icon">📄</div>
-            <div className="sc-empty-text">Select filters to generate report</div>
+            <div className="sc-empty-icon">
+              <svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="#bbb" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10 9 9 9 8 9"/>
+              </svg>
+            </div>
+            <h5 className="sc-empty-text">Select filters to generate report</h5>
           </div>
         ) : (
           <MdmReportsPreview

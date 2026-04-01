@@ -65,7 +65,7 @@ async function pollTaskAndDownload(taskId: string): Promise<void> {
 
 // ─── Filter / location / user builders ────────────────────────────────────────
 
-export function buildLocationFilters(
+function buildLocationFilters(
   geoDrillDownPath: DrillDownPathItem[]
 ): { level: string; value: string }[] {
   const map = new Map<string, string>();
@@ -75,7 +75,7 @@ export function buildLocationFilters(
   return Array.from(map.entries()).map(([level, value]) => ({ level, value }));
 }
 
-export function buildUserFilters(
+function buildUserFilters(
   salesDrillDownPath: DrillDownPathItem[],
   hierarchyOrder: string[]
 ): { userId: string; direct: boolean }[] {

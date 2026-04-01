@@ -62,8 +62,8 @@
 }
 
 .sc-tiles-search-wrap:focus-within {
-  border-color: #059669;
-  box-shadow: 0 0 0 3px rgba(5,150,105,0.08);
+  border-color: #00A392;
+  box-shadow: 0 0 0 3px rgba(0,163,146,0.08);
 }
 
 .sc-tiles-search-icon {
@@ -160,8 +160,8 @@
 }
 
 .sc-report-card:hover {
-  border-color: #059669;
-  box-shadow: 0 6px 20px rgba(5,150,105,0.12);
+  border-color: #00A392;
+  box-shadow: 0 6px 20px rgba(0,163,146,0.12);
   transform: translateY(-2px);
 }
 
@@ -169,13 +169,13 @@
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 3px;
-  background: linear-gradient(90deg, #059669, #10b981);
+  background: linear-gradient(90deg, #00A392, #1ab394);
   border-radius: 12px 12px 0 0;
 }
 
 .sc-card-icon {
   width: 40px; height: 40px;
-  background: #f0fdf4;
+  background: #e7f9f7;
   border-radius: 10px;
   display: flex;
   align-items: center;
@@ -239,7 +239,7 @@
 }
 
 .sc-report-card:hover .sc-card-arrow {
-  color: #059669;
+  color: #00A392;
   transform: translateX(3px);
 }
 

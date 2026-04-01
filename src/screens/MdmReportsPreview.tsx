@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type { Dayjs } from 'dayjs';
-import dayjs from 'dayjs';
-import { fetchReportData, fetchColumnDefinitions, type ReportSearchParams } from '../services/reportsDataService';
+import { fetchReportData, fetchColumnDefinitions } from '../services/reportsDataService';
 import { isMergedFilterForReport, getMergedFilterSources } from '../services/mdmCustomFiltersService';
 import { buildLocationFilters, buildUserFilters } from '../services/mdmReportsDownloadService';
 import type { newReportConfig } from '../types/mdmReportsUtils';
@@ -36,13 +35,6 @@ export function MdmReportsPreview({
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
-  const [search, setSearch] = useState('');
-  const [searchInput, setSearchInput] = useState('');
-  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
-  const [showColumnPanel, setShowColumnPanel] = useState(false);
-  const [fontSize, setFontSize] = useState(13);
-  const searchTimer = useRef<ReturnType<typeof setTimeout>>();
-  const columnPanelRef = useRef<HTMLDivElement>(null);
   const lastRequestIdRef = useRef(0);
   const pageRowCountsRef = useRef<Record<number, number>>({});
 
@@ -51,21 +43,18 @@ export function MdmReportsPreview({
     fetchColumnDefinitions(reportConfig.filterReportName ?? reportConfig.reportName)
       .then((cols) => {
         setColumns(cols);
-        if (reportConfig.columnsToHide?.length) {
-          setHiddenColumns(new Set(reportConfig.columnsToHide));
-        }
       })
       .catch(console.error);
   }, [reportConfig]);
 
-  // Reset page on filter/date/search change
+  // Reset page on filter/date change
   useEffect(() => {
     setPage(1);
     pageRowCountsRef.current = {};
-  }, [filters, fromDate, toDate, salesDrillDownPath, geoDrillDownPath, search]);
+  }, [filters, fromDate, toDate, salesDrillDownPath, geoDrillDownPath]);
 
   const loadData = useCallback(
-    async (p: number, searchText: string) => {
+    async (p: number) => {
       if (!reportConfig?.reportName) return;
 
       const requestId = ++lastRequestIdRef.current;
@@ -147,30 +136,28 @@ export function MdmReportsPreview({
           new Set(['distributor_code', ...customFilters.map(f => f.alias)])
         );
 
-        let since: string | undefined;
-        let until: string | undefined;
-
-        if (reportConfig.dateRangeFilter) {
-          since = new Date(Date.UTC(
-            fromDate.year(), fromDate.month(), fromDate.date() - 1, 18, 30, 0
-          )).toISOString().replace(/\.\d{3}Z$/, 'Z');
-          until = new Date(Date.UTC(
-            toDate.year(), toDate.month(), toDate.date(), 18, 29, 59
-          )).toISOString().replace(/\.\d{3}Z$/, 'Z');
-        }
-
-        const requestParams: ReportSearchParams = {
+        const requestParams: Record<string, unknown> = {
+          getAPI: reportConfig.getAPI,
           report: reportConfig.reportName,
           page: p,
           pageSize: PAGE_SIZE,
-          contains: searchText || undefined,
           filters: Object.keys(apiFilters).length > 0 ? apiFilters : undefined,
+          commaSeparatedFilters,
           distributorFilter: distributorFilterPayload,
-          since,
-          until,
         };
 
-        const data = await fetchReportData(requestParams);
+        if (reportConfig.dateRangeFilter) {
+          const fromISO = new Date(Date.UTC(
+            fromDate.year(), fromDate.month(), fromDate.date() - 1, 18, 30, 0
+          )).toISOString().replace(/\.\d{3}Z$/, 'Z');
+          const toISO = new Date(Date.UTC(
+            toDate.year(), toDate.month(), toDate.date(), 18, 29, 59
+          )).toISOString().replace(/\.\d{3}Z$/, 'Z');
+          requestParams.since = fromISO;
+          requestParams.until = toISO;
+        }
+
+        const data = await fetchReportData(requestParams as Parameters<typeof fetchReportData>[0]);
 
         if (requestId === lastRequestIdRef.current) {
           const items = data?.items ?? data?.data ?? [];
@@ -195,48 +182,24 @@ export function MdmReportsPreview({
   );
 
   useEffect(() => {
-    loadData(page, search);
+    loadData(page);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadData]);
 
   useEffect(() => {
-    loadData(page, search);
+    loadData(page);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
 
-  // Close column panel on outside click
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (columnPanelRef.current && !columnPanelRef.current.contains(e.target as Node)) {
-        setShowColumnPanel(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  function handleSearchChange(value: string) {
-    setSearchInput(value);
-    clearTimeout(searchTimer.current);
-    searchTimer.current = setTimeout(() => setSearch(value), 400);
-  }
-
-  function toggleColumn(alias: string) {
-    setHiddenColumns((prev) => {
-      const next = new Set(prev);
-      if (next.has(alias)) next.delete(alias);
-      else next.add(alias);
-      return next;
-    });
-  }
-
-  const visibleColumns = columns.filter((c) => !hiddenColumns.has(c.alias));
-
   const displayColumns: { alias: string; label: string }[] =
-    visibleColumns.length > 0
-      ? visibleColumns.map((c) => ({ alias: c.alias, label: c.display || c.alias }))
+    columns.length > 0
+      ? columns
+          .filter(c => !(reportConfig.columnsToHide || []).includes(c.alias))
+          .map((c) => ({ alias: c.alias, label: c.display || c.alias }))
       : rows.length > 0
-      ? Object.keys(rows[0]).filter(k => k !== '@filters' && !(reportConfig.columnsToHide || []).includes(k)).map((k) => ({ alias: k, label: k }))
+      ? Object.keys(rows[0])
+          .filter(k => k !== '@filters' && !(reportConfig.columnsToHide || []).includes(k))
+          .map((k) => ({ alias: k, label: k }))
       : [];
 
   // Pagination display: X-Y of Z
@@ -254,126 +217,60 @@ export function MdmReportsPreview({
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
-    <div className="sc-preview-panel">
-      {/* Toolbar */}
-      <div className="sc-preview-toolbar">
-        <div className="sc-preview-search-wrap">
-          <span className="sc-preview-search-icon">🔍</span>
-          <input
-            className="sc-preview-search"
-            type="text"
-            placeholder="Search records..."
-            value={searchInput}
-            onChange={(e) => handleSearchChange(e.target.value)}
-          />
-        </div>
-
-        <div className="sc-preview-toolbar-right">
-          {/* Zoom controls */}
-          <div className="sc-preview-zoom-controls">
-            <button
-              className="sc-preview-zoom-btn"
-              onClick={() => setFontSize((f) => Math.max(10, f - 1))}
-              title="Zoom out"
-            >
-              −
-            </button>
-            <span className="sc-preview-zoom-label">{fontSize}px</span>
-            <button
-              className="sc-preview-zoom-btn"
-              onClick={() => setFontSize((f) => Math.min(20, f + 1))}
-              title="Zoom in"
-            >
-              +
-            </button>
-          </div>
-
-          {/* Column visibility */}
-          <div className="sc-col-visibility-toggle" ref={columnPanelRef}>
-            <button
-              className="sc-btn-cols"
-              onClick={() => setShowColumnPanel((v) => !v)}
-            >
-              ☰ Columns&nbsp;
-              <span className="sc-cols-count">
-                {displayColumns.length}/{columns.length || displayColumns.length}
-              </span>
-            </button>
-            {showColumnPanel && (
-              <div className="sc-col-visibility-panel">
-                <div className="sc-col-panel-header">Column Visibility</div>
-                {(columns.length > 0 ? columns : displayColumns.map(c => ({ alias: c.alias, display: c.label }))).map((col) => {
-                  const alias = 'alias' in col ? col.alias : (col as { alias: string }).alias;
-                  const label = 'display' in col ? (col as ColumnOption).display : (col as { label: string }).label;
-                  return (
-                    <div
-                      key={alias}
-                      className="sc-col-visibility-item"
-                      onClick={() => toggleColumn(alias)}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={!hiddenColumns.has(alias)}
-                        onChange={() => toggleColumn(alias)}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                      <span>{label || alias}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
+    <div className="sc-preview-container">
       {/* Data Table */}
-      <div className="sc-preview-body">
-        <div className="sc-preview-grid-wrapper">
-          {loading ? (
-            <div className="sc-preview-loading-state">
-              <div className="sc-preview-spinner" />
-              <div className="sc-preview-loading-text">Loading data...</div>
+      <div className="sc-preview-table-container">
+        {loading ? (
+          <div className="sc-preview-loading-state">
+            <div className="sc-preview-spinner" />
+            <div className="sc-preview-loading-text">Loading data...</div>
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="sc-preview-empty-state">
+            <div className="sc-preview-empty-icon">
+              <svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="#bbb" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10 9 9 9 8 9"/>
+              </svg>
             </div>
-          ) : rows.length === 0 ? (
-            <div className="sc-preview-empty-state">
-              <div className="sc-preview-empty-icon">📭</div>
-              <div className="sc-preview-empty-title">No data found</div>
-              <div className="sc-preview-empty-sub">Try adjusting your filters or date range</div>
-            </div>
-          ) : (
-            <div className="sc-preview-table-scroll">
-              <table className="sc-preview-table" style={{ fontSize }}>
-                <thead>
-                  <tr className="sc-preview-thead-row">
+            <h5 className="sc-preview-empty-title">No data to display</h5>
+            <p className="sc-preview-empty-sub">Apply filters and click Preview to load data</p>
+          </div>
+        ) : (
+          <div className="sc-preview-table-scroll">
+            <table className="sc-preview-table">
+              <thead>
+                <tr className="sc-preview-thead-row">
+                  {displayColumns.map((col) => (
+                    <th key={col.alias} className="sc-preview-th">
+                      {col.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row, rowIdx) => (
+                  <tr
+                    key={rowIdx}
+                    className={`sc-preview-tr${rowIdx % 2 === 0 ? '' : ' sc-preview-tr-alt'}`}
+                  >
                     {displayColumns.map((col) => (
-                      <th key={col.alias} className="sc-preview-th">
-                        {col.label}
-                      </th>
+                      <td key={col.alias} className="sc-preview-td">
+                        {String(row[col.alias] ?? '')}
+                      </td>
                     ))}
                   </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row, rowIdx) => (
-                    <tr
-                      key={rowIdx}
-                      className={`sc-preview-tr${rowIdx % 2 === 0 ? '' : ' sc-preview-tr-alt'}`}
-                    >
-                      {displayColumns.map((col) => (
-                        <td key={col.alias} className="sc-preview-td">
-                          {String(row[col.alias] ?? '')}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
-      {/* Pagination Footer — matches original: left "X-Y of Z", right Prev|[badge]|Next */}
+      {/* Pagination Footer — left "X-Y of Z", right Prev|[badge]|Next */}
       <div className="sc-preview-pagination">
         <div className="sc-preview-pagination-left">
           {loading ? (
