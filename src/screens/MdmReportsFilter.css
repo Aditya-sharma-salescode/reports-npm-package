@@ -106,6 +106,36 @@
   line-height: 1;
 }
 
+.sc-date-range-wrapper {
+  position: relative;
+}
+
+.sc-date-range-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 14px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.sc-date-range-btn:hover {
+  border-color: #999;
+}
+
+.sc-date-range-btn.open {
+  border-color: #5b9a78;
+}
+
+.sc-date-range-value {
+  font-weight: 500;
+  color: #333;
+}
+
 /* ─── Filter bar row ─────────────────────────────────────────────────────────── */
 .sc-filter-bar-row {
   display: flex;

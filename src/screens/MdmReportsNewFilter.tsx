@@ -262,8 +262,6 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
             </div>
           ) : reportConfig.dateRangeFilter ? (
             <div className="sc-gstr-date-wrap">
-              <span className="sc-date-range-label">Date Range</span>
-              <span className="sc-date-range-asterisk">*</span>
               <NewDateFilter
                 fromDate={fromDate}
                 toDate={toDate}
