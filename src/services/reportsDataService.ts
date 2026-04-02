@@ -54,7 +54,8 @@ export async function fetchGeographicalLocationsUnder(
     parentValue,
     childLevel,
   });
-  return response.data?.locations ?? response.data ?? [];
+  const values: string[] = response.data?.values ?? response.data ?? [];
+  return values.map(v => ({ value: v, label: v }));
 }
 
 export async function fetchLocationUsers(

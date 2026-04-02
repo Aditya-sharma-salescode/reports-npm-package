@@ -5,6 +5,7 @@ import { GSTRMonthYearPicker } from '../date/GSTRMonthYearPicker';
 import { SalesHierarchyFilter } from '../utils/SalesHierarchyFilter';
 import { GeographicalHierarchyFilter } from '../utils/GeographicalHierarchyFilter';
 import { TopFilterBar } from '../components/TopFilterBar';
+import { CompactCheckboxDropdown } from '../components/CompactCheckboxDropdown';
 import { useHierarchyLoaders } from '../hooks/useHierarchyLoaders';
 import { loadCustomFiltersForReport } from '../services/mdmCustomFiltersService';
 import { fetchFilterValues, fetchLocationUsers, fetchChildrenUsers } from '../services/reportsDataService';
@@ -313,6 +314,22 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
     setFilters(prev => ({ ...prev, [key]: values }));
   }, []);
 
+  // ── Load custom filter options on open ──────────────────────────────────────
+  const loadCustomFilterOptions = useCallback(async (alias: string) => {
+    if (optionsMap[alias]?.length > 0) return; // already loaded
+    setLoadingMap(prev => ({ ...prev, [alias]: true }));
+    try {
+      const reportName = reportConfig.filterReportName ?? reportConfig.reportName;
+      const values = await fetchFilterValues({ report: reportName, which: alias });
+      const opts = values.map(v => ({ label: v, value: v }));
+      setOptionsMap(prev => ({ ...prev, [alias]: opts }));
+    } catch {
+      setOptionsMap(prev => ({ ...prev, [alias]: [] }));
+    } finally {
+      setLoadingMap(prev => ({ ...prev, [alias]: false }));
+    }
+  }, [reportConfig, optionsMap, setLoadingMap, setOptionsMap]);
+
   // ── Distributor source toggle ──────────────────────────────────────────────
   function handleDistributorSourceChange(source: DistributorSource) {
     if (source === distributorSource) return;
@@ -524,7 +541,39 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
     const v = filters[distributorFieldKey];
     chips.push({ key: 'distributor', label: 'Distributor', value: v[0], count: v.length > 1 ? v.length - 1 : undefined, onRemove: () => handleMultiFilterChange(distributorFieldKey, []) });
   }
-  // TODO: Add geo/sales path chips if needed
+  // Geo drill-down chips
+  if (geoDrillDownPath.length > 0) {
+    const levelGroups = new Map<string, string[]>();
+    geoDrillDownPath.forEach(p => {
+      const arr = levelGroups.get(p.level) || [];
+      arr.push(p.value);
+      levelGroups.set(p.level, arr);
+    });
+    levelGroups.forEach((values, level) => {
+      chips.push({ key: `geo_${level}`, label: level, value: values[0], count: values.length > 1 ? values.length - 1 : undefined, onRemove: () => handleGeoResetAll() });
+    });
+  }
+
+  // Sales drill-down chips
+  if (salesDrillDownPath.length > 0) {
+    const levelGroups = new Map<string, string[]>();
+    salesDrillDownPath.forEach(p => {
+      const arr = levelGroups.get(p.level) || [];
+      arr.push(p.value);
+      levelGroups.set(p.level, arr);
+    });
+    levelGroups.forEach((values, level) => {
+      chips.push({ key: `sales_${level}`, label: level, value: values[0], count: values.length > 1 ? values.length - 1 : undefined, onRemove: () => handleSalesResetAll() });
+    });
+  }
+
+  // Custom filter chips
+  customFilters.forEach(cf => {
+    const v = filters[cf.alias];
+    if (v?.length > 0) {
+      chips.push({ key: `custom_${cf.alias}`, label: cf.display, value: v[0], count: v.length > 1 ? v.length - 1 : undefined, onRemove: () => handleMultiFilterChange(cf.alias, []) });
+    }
+  });
 
   const noPreviewText =
     reportConfig.isLiveReport ? 'Live reports cannot be previewed. Kindly download the report to continue.'
@@ -621,6 +670,18 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
               onReset={handleReset}
             />
           )}
+          {customFilters.map(cf => (
+            <CompactCheckboxDropdown
+              key={cf.alias}
+              label={cf.display}
+              options={optionsMap[cf.alias] || []}
+              selected={filters[cf.alias] || []}
+              onChange={(values: string[]) => handleMultiFilterChange(cf.alias, values)}
+              loading={loadingMap[cf.alias] || false}
+              onOpen={() => loadCustomFilterOptions(cf.alias)}
+              selectAllLabel={`Select all`}
+            />
+          ))}
         </div>
         <div className="sc-filter-actions">
           {!noPreview && (
