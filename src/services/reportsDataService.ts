@@ -40,7 +40,8 @@ export async function fetchGeographicalLocations(
   level: string
 ): Promise<{ value: string; label: string }[]> {
   const response = await datastreamGet('/org/locations', { parentLevel: level });
-  return response.data?.locations ?? response.data ?? [];
+  const locations: string[] = response.data?.locations ?? response.data ?? [];
+  return locations.map(loc => ({ value: loc, label: loc }));
 }
 
 export async function fetchGeographicalLocationsUnder(
