@@ -24,11 +24,13 @@ interface TopFilterBarProps {
   geoDisabled: boolean;
   geoChildren: React.ReactNode;
   isHierarchySyncing: boolean;
+  onGeoDropdownClose?: () => void;
 
   // Sales hierarchy
   salesEnabled: boolean;
   salesDisabled: boolean;
   salesChildren: React.ReactNode;
+  onSalesDropdownClose?: () => void;
 
   // Distributor filter
   distributorOptions: { label: string; value: string }[];
@@ -56,9 +58,11 @@ export function TopFilterBar({
   geoDisabled,
   geoChildren,
   isHierarchySyncing,
+  onGeoDropdownClose,
   salesEnabled,
   salesDisabled,
   salesChildren,
+  onSalesDropdownClose,
   distributorOptions,
   selectedDistributors,
   onDistributorChange,
@@ -110,6 +114,7 @@ export function TopFilterBar({
               width={325}
               disabled={geoDisabled}
               isLoading={isHierarchySyncing}
+              onBeforeClose={onGeoDropdownClose}
             >
               {geoChildren}
             </HierarchyDropdown>
@@ -133,6 +138,7 @@ export function TopFilterBar({
                 width={325}
                 disabled={salesDisabled}
                 isLoading={isHierarchySyncing}
+                onBeforeClose={onSalesDropdownClose}
               >
                 {salesChildren}
               </HierarchyDropdown>

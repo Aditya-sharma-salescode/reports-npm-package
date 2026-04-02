@@ -12,6 +12,30 @@
   overflow: hidden;
 }
 
+/* ─── Custom filters row (inside preview, matches original) ─────────────────── */
+.sc-preview-custom-filters {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px;
+  border-bottom: 1px solid #e5e5e5;
+  flex-shrink: 0;
+  background: #fff;
+}
+
+.sc-preview-custom-filters-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sc-preview-custom-filters-row {
+  display: flex;
+  gap: 12px;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
 /* ─── Table container ────────────────────────────────────────────────────────── */
 .sc-preview-table-container {
   flex: 1;

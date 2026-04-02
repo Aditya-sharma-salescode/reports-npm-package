@@ -8,6 +8,7 @@ interface HierarchyDropdownProps {
   disabled?: boolean;
   isLoading?: boolean;
   width?: number;
+  onBeforeClose?: () => void;
 }
 
 export function HierarchyDropdown({
@@ -16,6 +17,7 @@ export function HierarchyDropdown({
   disabled = false,
   isLoading = false,
   width = 360,
+  onBeforeClose,
 }: HierarchyDropdownProps) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -50,6 +52,7 @@ export function HierarchyDropdown({
         triggerRef.current && !triggerRef.current.contains(e.target as Node) &&
         panelRef.current && !panelRef.current.contains(e.target as Node)
       ) {
+        onBeforeClose?.();
         setOpen(false);
       }
     };
@@ -63,6 +66,7 @@ export function HierarchyDropdown({
 
   function handleToggle() {
     if (disabled) return;
+    if (open) onBeforeClose?.();
     setOpen(v => !v);
   }
 

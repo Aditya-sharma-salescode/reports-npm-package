@@ -5,7 +5,6 @@ import { GSTRMonthYearPicker } from '../date/GSTRMonthYearPicker';
 import { SalesHierarchyFilter } from '../utils/SalesHierarchyFilter';
 import { GeographicalHierarchyFilter } from '../utils/GeographicalHierarchyFilter';
 import { TopFilterBar } from '../components/TopFilterBar';
-import { CompactCheckboxDropdown } from '../components/CompactCheckboxDropdown';
 import { useHierarchyLoaders } from '../hooks/useHierarchyLoaders';
 import { loadCustomFiltersForReport } from '../services/mdmCustomFiltersService';
 import { fetchFilterValues, fetchLocationUsers, fetchChildrenUsers } from '../services/reportsDataService';
@@ -64,6 +63,8 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
   const [notification, setNotification] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
   const [isHierarchySyncing, setIsHierarchySyncing] = useState(false);
   const downloadMenuRef = useRef<HTMLDivElement>(null);
+  const salesApplyJustClicked = useRef(false);
+  const geoApplyJustClicked = useRef(false);
 
   const selectedReport = reportConfig;
   const noPreview = isNoPreviewReport(reportConfig);
@@ -202,6 +203,8 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
     const currentValues = filters[currentLevel] || [];
     if (currentValues.length === 0) return;
 
+    salesApplyJustClicked.current = true;
+
     // Add to drill-down path
     const newPathItems: DrillDownPathItem[] = currentValues.map(v => ({ level: currentLevel, value: v }));
     const newPath = [...salesDrillDownPath.filter(p => p.level !== currentLevel), ...newPathItems];
@@ -220,6 +223,52 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
 
     setIsHierarchySyncing(false);
   }, [salesConfig, filters, salesDrillDownPath, loadSalesValues]);
+
+  // Revert uncommitted sales filter changes on dropdown close (matching original)
+  const handleSalesDropdownClose = useCallback(() => {
+    if (!salesConfig) return;
+    if (salesApplyJustClicked.current) {
+      salesApplyJustClicked.current = false;
+      setIsHierarchySyncing(false);
+      return;
+    }
+    const hierarchyOrder = salesConfig.hierarchyOrder || [];
+    const levelKey = salesConfig.levelFilterField;
+    const getValuesFromPath = (path: DrillDownPathItem[], level: string) =>
+      path.filter(item => item.level === level).map(item => item.value);
+
+    setFilters(prev => {
+      const next = { ...prev };
+      let changed = false;
+      hierarchyOrder.forEach(level => {
+        const filterValues = prev[level] || [];
+        const committedValues = getValuesFromPath(salesDrillDownPath, level);
+        if (filterValues.length > 0 && committedValues.length === 0) {
+          delete next[level]; changed = true;
+        } else if (filterValues.length > 0 && JSON.stringify([...filterValues].sort()) !== JSON.stringify([...committedValues].sort())) {
+          if (committedValues.length > 0) { next[level] = [...committedValues]; } else { delete next[level]; }
+          changed = true;
+        }
+      });
+      if (salesDrillDownPath.length === 0 && next[levelKey]) { delete next[levelKey]; changed = true; }
+      return changed ? next : prev;
+    });
+    setOptionsMap(prev => {
+      const u = { ...prev }; let changed = false;
+      hierarchyOrder.forEach(level => {
+        if (getValuesFromPath(salesDrillDownPath, level).length === 0 && u[level]) { delete u[level]; changed = true; }
+      });
+      return changed ? u : prev;
+    });
+    setSalesOptionsCache(prev => {
+      const u = { ...prev }; let changed = false;
+      hierarchyOrder.forEach(level => {
+        if (getValuesFromPath(salesDrillDownPath, level).length === 0 && u[level]) { delete u[level]; changed = true; }
+      });
+      return changed ? u : prev;
+    });
+    setIsHierarchySyncing(false);
+  }, [salesConfig, salesDrillDownPath]);
 
   const handleSalesResetAll = useCallback(() => {
     if (!salesConfig) return;
@@ -272,6 +321,8 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
     const currentValues = filters[currentLevel] || [];
     if (currentValues.length === 0) return;
 
+    geoApplyJustClicked.current = true;
+
     // Add to drill-down path
     const newPathItems: DrillDownPathItem[] = currentValues.map(v => ({ level: currentLevel, value: v }));
     const newPath = [...geoDrillDownPath.filter(p => p.level !== currentLevel), ...newPathItems];
@@ -290,6 +341,51 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
 
     setIsHierarchySyncing(false);
   }, [geoConfig, filters, geoDrillDownPath, geoHierarchyOrder, loadGeographicalValues]);
+
+  // Revert uncommitted geo filter changes on dropdown close (matching original)
+  const handleGeoDropdownClose = useCallback(() => {
+    if (!geoConfig) return;
+    if (geoApplyJustClicked.current) {
+      geoApplyJustClicked.current = false;
+      setIsHierarchySyncing(false);
+      return;
+    }
+    const levelKey = geoConfig.levelFilterField;
+    const getValuesFromPath = (path: DrillDownPathItem[], level: string) =>
+      path.filter(item => item.level === level).map(item => item.value);
+
+    setFilters(prev => {
+      const next = { ...prev };
+      let changed = false;
+      geoHierarchyOrder.forEach(level => {
+        const filterValues = prev[level] || [];
+        const committedValues = getValuesFromPath(geoDrillDownPath, level);
+        if (filterValues.length > 0 && committedValues.length === 0) {
+          delete next[level]; changed = true;
+        } else if (filterValues.length > 0 && JSON.stringify([...filterValues].sort()) !== JSON.stringify([...committedValues].sort())) {
+          if (committedValues.length > 0) { next[level] = [...committedValues]; } else { delete next[level]; }
+          changed = true;
+        }
+      });
+      if (geoDrillDownPath.length === 0 && next[levelKey]) { delete next[levelKey]; changed = true; }
+      return changed ? next : prev;
+    });
+    setOptionsMap(prev => {
+      const u = { ...prev }; let changed = false;
+      geoHierarchyOrder.forEach(level => {
+        if (getValuesFromPath(geoDrillDownPath, level).length === 0 && u[level]) { delete u[level]; changed = true; }
+      });
+      return changed ? u : prev;
+    });
+    setGeoOptionsCache(prev => {
+      const u = { ...prev }; let changed = false;
+      geoHierarchyOrder.forEach(level => {
+        if (getValuesFromPath(geoDrillDownPath, level).length === 0 && u[level]) { delete u[level]; changed = true; }
+      });
+      return changed ? u : prev;
+    });
+    setIsHierarchySyncing(false);
+  }, [geoConfig, geoDrillDownPath, geoHierarchyOrder]);
 
   const handleGeoResetAll = useCallback(() => {
     if (!geoConfig) return;
@@ -313,22 +409,6 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
   const handleMultiFilterChange = useCallback((key: string, values: string[]) => {
     setFilters(prev => ({ ...prev, [key]: values }));
   }, []);
-
-  // ── Load custom filter options on open ──────────────────────────────────────
-  const loadCustomFilterOptions = useCallback(async (alias: string) => {
-    if (optionsMap[alias]?.length > 0) return; // already loaded
-    setLoadingMap(prev => ({ ...prev, [alias]: true }));
-    try {
-      const reportName = reportConfig.filterReportName ?? reportConfig.reportName;
-      const values = await fetchFilterValues({ report: reportName, which: alias });
-      const opts = values.map(v => ({ label: v, value: v }));
-      setOptionsMap(prev => ({ ...prev, [alias]: opts }));
-    } catch {
-      setOptionsMap(prev => ({ ...prev, [alias]: [] }));
-    } finally {
-      setLoadingMap(prev => ({ ...prev, [alias]: false }));
-    }
-  }, [reportConfig, optionsMap, setLoadingMap, setOptionsMap]);
 
   // ── Distributor source toggle ──────────────────────────────────────────────
   function handleDistributorSourceChange(source: DistributorSource) {
@@ -667,21 +747,11 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
               distributorLoading={distributorFieldKey ? (loadingMap[distributorFieldKey] || false) : false}
               onDistributorOpen={() => distributorFieldKey && loadDistributorOptions(distributorFieldKey)}
               showDistributorFilter={!!distConfig?.enabled && !isDistributorView}
+              onGeoDropdownClose={handleGeoDropdownClose}
+              onSalesDropdownClose={handleSalesDropdownClose}
               onReset={handleReset}
             />
           )}
-          {customFilters.map(cf => (
-            <CompactCheckboxDropdown
-              key={cf.alias}
-              label={cf.display}
-              options={optionsMap[cf.alias] || []}
-              selected={filters[cf.alias] || []}
-              onChange={(values: string[]) => handleMultiFilterChange(cf.alias, values)}
-              loading={loadingMap[cf.alias] || false}
-              onOpen={() => loadCustomFilterOptions(cf.alias)}
-              selectAllLabel={`Select all`}
-            />
-          ))}
         </div>
         <div className="sc-filter-actions">
           {!noPreview && (
@@ -738,6 +808,11 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
           showPreview={showPreview && !noPreview}
           noPreviewText={noPreviewText}
           isNoPreviewReport={noPreview}
+          optionsMap={optionsMap}
+          loadingMap={loadingMap}
+          onFilterChange={handleMultiFilterChange}
+          onFilterOpen={handleFilterOpen}
+          customFiltersLoading={customFiltersLoading}
         />
       </div>
     </div>

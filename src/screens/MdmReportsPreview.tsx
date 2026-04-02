@@ -3,6 +3,7 @@ import type { Dayjs } from 'dayjs';
 import { fetchReportData, fetchColumnDefinitions, type ReportSearchParams } from '../services/reportsDataService';
 import { isMergedFilterForReport, getMergedFilterSources } from '../services/mdmCustomFiltersService';
 import { buildLocationFilters, buildUserFilters } from '../services/mdmReportsDownloadService';
+import { CompactCheckboxDropdown } from '../components/CompactCheckboxDropdown';
 import type { newReportConfig } from '../types/mdmReportsUtils';
 import type { FilterOption, DrillDownPathItem, ColumnOption } from '../services/types';
 import './MdmReportsPreview.css';
@@ -21,6 +22,11 @@ interface MdmReportsPreviewProps {
   showPreview?: boolean;
   noPreviewText?: string;
   isNoPreviewReport?: boolean;
+  optionsMap?: Record<string, { label: string; value: string }[]>;
+  loadingMap?: Record<string, boolean>;
+  onFilterChange?: (key: string, values: string[]) => void;
+  onFilterOpen?: (key: string) => void;
+  customFiltersLoading?: boolean;
 }
 
 export function MdmReportsPreview({
@@ -34,6 +40,11 @@ export function MdmReportsPreview({
   showPreview = true,
   noPreviewText = 'Select filters to generate report',
   isNoPreviewReport = false,
+  optionsMap = {},
+  loadingMap = {},
+  onFilterChange,
+  onFilterOpen,
+  customFiltersLoading = false,
 }: MdmReportsPreviewProps) {
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [columns, setColumns] = useState<ColumnOption[]>([]);
@@ -251,8 +262,42 @@ export function MdmReportsPreview({
     );
   }
 
+  const showCustomFilters = Boolean(
+    (reportConfig.shouldShowCustomFilters ?? true) && customFilters.length > 0
+  );
+
   return (
     <div className="sc-preview-container">
+      {/* Custom Filters Section — matches original's placement inside preview */}
+      {showCustomFilters && (
+        <div className="sc-preview-custom-filters">
+          {customFiltersLoading ? (
+            <div className="sc-preview-custom-filters-loading">
+              <div className="sc-preview-spinner" style={{ width: 20, height: 20 }} />
+              <span style={{ fontSize: 13, color: '#666' }}>Loading filters...</span>
+            </div>
+          ) : (
+            <div className="sc-preview-custom-filters-row">
+              {customFilters.map(cf => (
+                <CompactCheckboxDropdown
+                  key={cf.alias}
+                  label={cf.display}
+                  options={optionsMap[cf.alias] || []}
+                  selected={filters[cf.alias] || []}
+                  onChange={values => onFilterChange?.(cf.alias, values)}
+                  onOpen={() => onFilterOpen?.(cf.alias)}
+                  loading={loadingMap[cf.alias] || false}
+                  placeholder={cf.display}
+                  width={152}
+                  dropdownWidth={250}
+                  selectAllLabel="Select all"
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Data Table */}
       <div className="sc-preview-table-container">
         {loading ? (
