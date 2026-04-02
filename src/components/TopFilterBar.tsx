@@ -73,7 +73,7 @@ export function TopFilterBar({
     <div className="sc-topbar-wrapper">
       <div className="sc-topbar-inner">
         {/* Distributor Type */}
-        {selectedReport?.showDistributorType !== false && distributorTypeOptions.length > 0 && (
+        {selectedReport?.showDistributorType !== false && (
           <CompactCheckboxDropdown
             label="Distributor Type"
             options={distributorTypeOptions}
@@ -84,7 +84,7 @@ export function TopFilterBar({
         )}
 
         {/* Distributor Division */}
-        {selectedReport?.showDistributorDivision !== false && distributorDivisionOptions.length > 0 && (
+        {selectedReport?.showDistributorDivision !== false && (
           <CompactCheckboxDropdown
             label="Distributor Division"
             options={distributorDivisionOptions}

@@ -1,18 +1,17 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import dayjs, { type Dayjs } from 'dayjs';
 import { NewDateFilter } from '../date/NewDateFilter';
 import { GSTRMonthYearPicker } from '../date/GSTRMonthYearPicker';
 import { SalesHierarchyFilter } from '../utils/SalesHierarchyFilter';
 import { GeographicalHierarchyFilter } from '../utils/GeographicalHierarchyFilter';
-import { CompactCheckboxDropdown } from '../components/CompactCheckboxDropdown';
 import { TopFilterBar } from '../components/TopFilterBar';
-import { loadCustomFiltersForReport, isMergedFilterForReport, getMergedFilterSources } from '../services/mdmCustomFiltersService';
-import { fetchFilterValues, fetchColumnDefinitions, fetchLocationUsers, fetchChildrenUsers } from '../services/reportsDataService';
+import { useHierarchyLoaders } from '../hooks/useHierarchyLoaders';
+import { loadCustomFiltersForReport } from '../services/mdmCustomFiltersService';
+import { fetchFilterValues, fetchLocationUsers, fetchChildrenUsers } from '../services/reportsDataService';
 import { fetchDistributorMeta, filterDistributorsBySelections } from '../services/distributorMetaService';
 import { downloadReport, buildLocationFilters, buildUserFilters } from '../services/mdmReportsDownloadService';
-import { getAuthContext } from '../config/auth';
 import type { newReportConfig } from '../types/mdmReportsUtils';
-import type { FilterOption, DistributorMeta, DrillDownPathItem, DistributorFeature } from '../services/types';
+import type { FilterOption, DrillDownPathItem, DistributorFeature } from '../services/types';
 import { MdmReportsPreview } from './MdmReportsPreview';
 import './MdmReportsFilter.css';
 
@@ -25,45 +24,39 @@ function isNoPreviewReport(config: newReportConfig) {
   return config.isLiveReport || config.isGSTRReport || config.isPDFReport || config.customDownload;
 }
 
+type DistributorSource = 'geographical' | 'sales';
+
+const resolveDefaultDistributorSource = (report: newReportConfig): DistributorSource => {
+  if (report.geographicalHierarchyFilter?.enabled) return 'geographical';
+  if (report.salesHierarchyFilter?.enabled) return 'sales';
+  return 'geographical';
+};
+
 export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilterProps) {
-  // ── Sales hierarchy ─────────────────────────────────────────────────────────
-  const [salesLevel, setSalesLevel] = useState<string | null>(null);
-  const [salesValues, setSalesValues] = useState<string[]>([]);
+  // ── Centralized state (matches original's pattern) ─────────────────────────
+  const [filters, setFilters] = useState<Record<string, string[]>>({});
+  const [optionsMap, setOptionsMap] = useState<Record<string, { label: string; value: string }[]>>({});
+  const [loadingMap, setLoadingMap] = useState<Record<string, boolean>>({});
+  const [salesDrillDownPath, setSalesDrillDownPath] = useState<DrillDownPathItem[]>([]);
+  const [geoDrillDownPath, setGeoDrillDownPath] = useState<DrillDownPathItem[]>([]);
+  const [geoHierarchyOrder, setGeoHierarchyOrder] = useState<string[]>([]);
+  const [salesOptionsCache, setSalesOptionsCache] = useState<Record<string, { label: string; value: string }[]>>({});
+  const [geoOptionsCache, setGeoOptionsCache] = useState<Record<string, { label: string; value: string }[]>>({});
 
-  // ── Geo hierarchy ────────────────────────────────────────────────────────────
-  const [geoLevel, setGeoLevel] = useState<string | null>(null);
-  const [geoValues, setGeoValues] = useState<string[]>([]);
-
-  // ── Distributor ─────────────────────────────────────────────────────────────
-  const [selectedDistributors, setSelectedDistributors] = useState<string[]>([]);
-  const [distributorOptions, setDistributorOptions] = useState<{ label: string; value: string }[]>([]);
-  const [distributorLoading, setDistributorLoading] = useState(false);
-
-  // ── Distributor type / division ──────────────────────────────────────────────
-  const [distributorMeta, setDistributorMeta] = useState<DistributorMeta | null>(null);
+  // Distributor
   const [distributorFeatures, setDistributorFeatures] = useState<DistributorFeature[]>([]);
-  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
-  const [selectedDivisions, setSelectedDivisions] = useState<string[]>([]);
+  const [distributorSource, setDistributorSource] = useState<DistributorSource>(resolveDefaultDistributorSource(reportConfig));
 
-  // ── Hierarchy source toggle ──────────────────────────────────────────────────
-  const [distributorSource, setDistributorSource] = useState<'geographical' | 'sales'>(() => {
-    if (reportConfig.geographicalHierarchyFilter?.enabled) return 'geographical';
-    if (reportConfig.salesHierarchyFilter?.enabled) return 'sales';
-    return 'geographical';
-  });
-
-  // ── Custom filters ──────────────────────────────────────────────────────────
+  // Custom filters
   const [customFilters, setCustomFilters] = useState<FilterOption[]>([]);
-  const [customFilterOptions, setCustomFilterOptions] = useState<Record<string, { label: string; value: string }[]>>({});
-  const [customFilterLoading, setCustomFilterLoading] = useState<Record<string, boolean>>({});
-  const [customFilterSelections, setCustomFilterSelections] = useState<Record<string, string[]>>({});
+  const [customFiltersLoading, setCustomFiltersLoading] = useState(false);
 
-  // ── Date ────────────────────────────────────────────────────────────────────
+  // Date
   const [fromDate, setFromDate] = useState<Dayjs>(dayjs());
   const [toDate, setToDate] = useState<Dayjs>(dayjs());
   const [dateFilterKey, setDateFilterKey] = useState(0);
 
-  // ── UI ───────────────────────────────────────────────────────────────────────
+  // UI
   const [showPreview, setShowPreview] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [downloadMenuOpen, setDownloadMenuOpen] = useState(false);
@@ -71,11 +64,13 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
   const [isHierarchySyncing, setIsHierarchySyncing] = useState(false);
   const downloadMenuRef = useRef<HTMLDivElement>(null);
 
+  const selectedReport = reportConfig;
   const noPreview = isNoPreviewReport(reportConfig);
   const salesConfig = reportConfig.salesHierarchyFilter;
   const geoConfig = reportConfig.geographicalHierarchyFilter;
   const distConfig = reportConfig.distributorFilter;
   const isDistributorView = reportConfig.isDistributorView;
+  const distributorFieldKey = distConfig?.field;
 
   const geoEnabled = !!geoConfig?.enabled;
   const salesEnabled = !!salesConfig?.enabled;
@@ -83,30 +78,67 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
   const isGeoActive = geoEnabled && (!showToggle || distributorSource === 'geographical');
   const isSalesActive = salesEnabled && (!showToggle || distributorSource === 'sales');
 
-  const salesDrillDownPath: DrillDownPathItem[] =
-    salesLevel && salesValues.length > 0
-      ? salesValues.map(v => ({ level: salesLevel, value: v }))
-      : [];
+  // ── Hierarchy loaders (matches original's useHierarchyLoaders) ────────────
+  const {
+    loadSalesLevels,
+    loadSalesValues,
+    loadGeographicalLevels,
+    loadGeographicalValues,
+  } = useHierarchyLoaders({
+    selectedReport,
+    filters,
+    setOptionsMap,
+    setLoadingMap,
+    salesDrillDownPath,
+    geoDrillDownPath,
+    geoHierarchyOrder,
+    setGeoHierarchyOrder,
+    salesOptionsCache,
+    setSalesOptionsCache,
+    geoOptionsCache,
+    setGeoOptionsCache,
+  });
 
-  const geoDrillDownPath: DrillDownPathItem[] =
-    geoLevel && geoValues.length > 0
-      ? geoValues.map(v => ({ level: geoLevel, value: v }))
-      : [];
-
-  const primaryFilter: 'sales' | 'geographical' | 'distributor' | null =
-    geoValues.length > 0 ? 'geographical'
-    : salesValues.length > 0 ? 'sales'
-    : selectedDistributors.length > 0 ? 'distributor'
-    : null;
-
+  // ── Derived state ─────────────────────────────────────────────────────────
   const hasSalesDrillDown = salesDrillDownPath.length > 0;
   const hasGeoDrillDown = geoDrillDownPath.length > 0;
-  const hasDirectDistributor = selectedDistributors.length > 0;
+  const hasDirectDistributor = distributorFieldKey ? (filters[distributorFieldKey]?.length > 0) : false;
   const hasFilters = hasSalesDrillDown || hasGeoDrillDown || hasDirectDistributor || isDistributorView;
   const isPreviewDisabled = !hasFilters;
   const isDownloadDisabled = !hasFilters;
 
-  // ── Close download menu on outside click ────────────────────────────────────
+  // ── Load on mount ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (salesConfig?.enabled) loadSalesLevels();
+  }, [salesConfig?.enabled, loadSalesLevels]);
+
+  useEffect(() => {
+    if (geoConfig?.enabled) loadGeographicalLevels();
+  }, [geoConfig?.enabled, loadGeographicalLevels]);
+
+  useEffect(() => {
+    fetchDistributorMeta().then(meta => {
+      setDistributorFeatures(meta.features);
+      const typeOpts = meta.types.map(t => ({ label: t, value: t }));
+      const divOpts = meta.divisions.map(d => ({ label: d, value: d }));
+      setOptionsMap(prev => ({ ...prev, distributor_type: typeOpts, distributor_division: divOpts }));
+    }).catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    const loadCustom = async () => {
+      setCustomFiltersLoading(true);
+      try {
+        const cf = await loadCustomFiltersForReport(reportConfig);
+        setCustomFilters(cf);
+      } finally {
+        setCustomFiltersLoading(false);
+      }
+    };
+    loadCustom();
+  }, [reportConfig]);
+
+  // Close download menu on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (downloadMenuRef.current && !downloadMenuRef.current.contains(e.target as Node)) setDownloadMenuOpen(false);
@@ -115,161 +147,224 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // ── Load on mount ────────────────────────────────────────────────────────────
+  // Clear distributor when hierarchy/type/division changes
   useEffect(() => {
-    if (reportConfig.shouldShowCustomFilters) {
-      loadCustomFiltersForReport(reportConfig).then(setCustomFilters);
+    if (distConfig?.enabled && distributorFieldKey) {
+      setOptionsMap(prev => { const u = { ...prev }; delete u[distributorFieldKey]; return u; });
+      setFilters(prev => { const u = { ...prev }; delete u[distributorFieldKey]; return u; });
     }
-    // Load distributor meta (for type/division dropdowns + distributor feature cache)
-    fetchDistributorMeta().then(meta => {
-      setDistributorMeta(meta);
-      setDistributorFeatures(meta.features);
-    }).catch(console.error);
-  }, [reportConfig]);
+  }, [
+    distConfig?.enabled,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    JSON.stringify(geoDrillDownPath),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    JSON.stringify(salesDrillDownPath),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    JSON.stringify(filters['distributor_type']),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    JSON.stringify(filters['distributor_division']),
+    distributorSource,
+  ]);
 
-  // Load custom filter options
-  useEffect(() => {
-    for (const filter of customFilters) {
-      loadFilterOpts(filter.alias);
-    }
-  }, [customFilters]);
+  // ── Hierarchy handlers (matching original) ─────────────────────────────────
 
-  const loadFilterOpts = useCallback(async (alias: string) => {
-    if (!reportConfig?.reportName) return;
-    setCustomFilterLoading(p => ({ ...p, [alias]: true }));
-    try {
-      // Build hierarchy-based distributor filter payload
-      const locationFilters = buildLocationFilters(geoDrillDownPath);
-      const userFilters = buildUserFilters(
-        salesDrillDownPath,
-        reportConfig.salesHierarchyFilter?.hierarchyOrder || []
-      );
-
-      const distributorFilterPayload =
-        (locationFilters.length > 0 || userFilters.length > 0)
-          ? {
-              locationFilters: locationFilters.length > 0 ? locationFilters : undefined,
-              userFilters: userFilters.length > 0 ? userFilters : undefined,
-            }
-          : undefined;
-
-      // Pass distributor codes as additionalFilters
-      const distributorCodes = selectedDistributors.length > 0 ? selectedDistributors : [];
-      const additionalFilters: Record<string, string[]> | undefined =
-        distributorCodes.length > 0 ? { distributor_code: distributorCodes } : undefined;
-
-      // Date range
-      let since: string | undefined;
-      let until: string | undefined;
-      if (reportConfig.dateRangeFilter && fromDate && toDate) {
-        since = new Date(Date.UTC(
-          fromDate.year(), fromDate.month(), fromDate.date() - 1, 18, 30, 0
-        )).toISOString().replace(/\.\d{3}Z$/, 'Z');
-        until = new Date(Date.UTC(
-          toDate.year(), toDate.month(), toDate.date(), 18, 29, 59
-        )).toISOString().replace(/\.\d{3}Z$/, 'Z');
+  const handleSalesLevelChange = useCallback((level: string | null) => {
+    if (!salesConfig) return;
+    const levelKey = salesConfig.levelFilterField;
+    setFilters(prev => {
+      const next = { ...prev };
+      if (level) {
+        next[levelKey] = [level];
+      } else {
+        delete next[levelKey];
       }
+      return next;
+    });
+    if (level) loadSalesValues(level);
+  }, [salesConfig, loadSalesValues]);
 
-      // Dependency filters: other custom filter selections
-      const dependencyFilters: Record<string, string[]> = {};
-      for (const [key, vals] of Object.entries(customFilterSelections)) {
-        if (key === alias) continue;
-        if (vals && vals.length > 0 && vals[0] !== '') {
-          dependencyFilters[key] = vals;
-        }
-      }
-
-      const values = await fetchFilterValues({
-        report: reportConfig.filterReportName ?? reportConfig.reportName,
-        which: alias,
-        filters: Object.keys(dependencyFilters).length > 0 ? dependencyFilters : undefined,
-        additionalFilters,
-        since,
-        until,
-        distributorFilter: distributorFilterPayload,
-      });
-      const filteredValues = values.filter(v => v && String(v).trim() !== '');
-      setCustomFilterOptions(p => ({
-        ...p,
-        [alias]: filteredValues.map(v => ({ label: String(v), value: String(v) })),
-      }));
-    } catch { /* ignore */ } finally {
-      setCustomFilterLoading(p => ({ ...p, [alias]: false }));
+  const handleSalesValueChange = useCallback((values: string[]) => {
+    if (!salesConfig) return;
+    const currentLevel = filters[salesConfig.levelFilterField]?.[0];
+    if (currentLevel) {
+      setFilters(prev => ({ ...prev, [currentLevel]: values }));
     }
-  }, [reportConfig, fromDate, toDate, geoDrillDownPath, salesDrillDownPath, selectedDistributors, customFilterSelections]);
+  }, [salesConfig, filters]);
 
-  /**
-   * Load distributor options — matches original's loadDistributorOptions logic exactly:
-   * 1. If geo source + geo drilldown path → fetchLocationUsers for supplier designation
-   * 2. If sales source + sales drilldown path → use supplier selections or fetchChildrenUsers
-   * 3. Fallback → fetchChildrenUsers(loggedInUser, 'supplier')
-   * 4. Cross-filter by selected types/divisions using distributorFeatures cache
-   */
-  const loadDistributorOptions = useCallback(async () => {
-    if (!distConfig?.enabled) return;
-    setDistributorLoading(true);
+  const handleSalesNextLevel = useCallback(() => {
+    if (!salesConfig) return;
+    const hierarchyOrder = salesConfig.hierarchyOrder || [];
+    const levelKey = salesConfig.levelFilterField;
+    const currentLevel = filters[levelKey]?.[0];
+    if (!currentLevel) return;
+
+    const currentValues = filters[currentLevel] || [];
+    if (currentValues.length === 0) return;
+
+    // Add to drill-down path
+    const newPathItems: DrillDownPathItem[] = currentValues.map(v => ({ level: currentLevel, value: v }));
+    const newPath = [...salesDrillDownPath.filter(p => p.level !== currentLevel), ...newPathItems];
+    setSalesDrillDownPath(newPath);
+
+    // Move to next level
+    const currentIdx = hierarchyOrder.indexOf(currentLevel);
+    const nextLevel = currentIdx >= 0 && currentIdx < hierarchyOrder.length - 2
+      ? hierarchyOrder[currentIdx + 1]
+      : null;
+
+    if (nextLevel && nextLevel !== 'supplier') {
+      setFilters(prev => ({ ...prev, [levelKey]: [nextLevel] }));
+      loadSalesValues(nextLevel);
+    }
+
+    setIsHierarchySyncing(false);
+  }, [salesConfig, filters, salesDrillDownPath, loadSalesValues]);
+
+  const handleSalesResetAll = useCallback(() => {
+    if (!salesConfig) return;
+    const levelKey = salesConfig.levelFilterField;
+    const hierarchyOrder = salesConfig.hierarchyOrder || [];
+    setFilters(prev => {
+      const next = { ...prev };
+      delete next[levelKey];
+      hierarchyOrder.forEach(level => delete next[level]);
+      return next;
+    });
+    setSalesDrillDownPath([]);
+    setOptionsMap(prev => {
+      const u = { ...prev };
+      hierarchyOrder.forEach(level => delete u[level]);
+      return u;
+    });
+    setSalesOptionsCache({});
+  }, [salesConfig]);
+
+  const handleGeoLevelChange = useCallback((level: string | null) => {
+    if (!geoConfig) return;
+    const levelKey = geoConfig.levelFilterField;
+    setFilters(prev => {
+      const next = { ...prev };
+      if (level) {
+        next[levelKey] = [level];
+      } else {
+        delete next[levelKey];
+      }
+      return next;
+    });
+    if (level) loadGeographicalValues(level);
+  }, [geoConfig, loadGeographicalValues]);
+
+  const handleGeoValueChange = useCallback((values: string[]) => {
+    if (!geoConfig) return;
+    const currentLevel = filters[geoConfig.levelFilterField]?.[0];
+    if (currentLevel) {
+      setFilters(prev => ({ ...prev, [currentLevel]: values }));
+    }
+  }, [geoConfig, filters]);
+
+  const handleGeoNextLevel = useCallback(() => {
+    if (!geoConfig) return;
+    const levelKey = geoConfig.levelFilterField;
+    const currentLevel = filters[levelKey]?.[0];
+    if (!currentLevel) return;
+
+    const currentValues = filters[currentLevel] || [];
+    if (currentValues.length === 0) return;
+
+    // Add to drill-down path
+    const newPathItems: DrillDownPathItem[] = currentValues.map(v => ({ level: currentLevel, value: v }));
+    const newPath = [...geoDrillDownPath.filter(p => p.level !== currentLevel), ...newPathItems];
+    setGeoDrillDownPath(newPath);
+
+    // Move to next level
+    const currentIdx = geoHierarchyOrder.indexOf(currentLevel);
+    const nextLevel = currentIdx >= 0 && currentIdx < geoHierarchyOrder.length - 1
+      ? geoHierarchyOrder[currentIdx + 1]
+      : null;
+
+    if (nextLevel) {
+      setFilters(prev => ({ ...prev, [levelKey]: [nextLevel] }));
+      loadGeographicalValues(nextLevel);
+    }
+
+    setIsHierarchySyncing(false);
+  }, [geoConfig, filters, geoDrillDownPath, geoHierarchyOrder, loadGeographicalValues]);
+
+  const handleGeoResetAll = useCallback(() => {
+    if (!geoConfig) return;
+    const levelKey = geoConfig.levelFilterField;
+    setFilters(prev => {
+      const next = { ...prev };
+      delete next[levelKey];
+      geoHierarchyOrder.forEach(level => delete next[level]);
+      return next;
+    });
+    setGeoDrillDownPath([]);
+    setOptionsMap(prev => {
+      const u = { ...prev };
+      geoHierarchyOrder.forEach(level => delete u[level]);
+      return u;
+    });
+    setGeoOptionsCache({});
+  }, [geoConfig, geoHierarchyOrder]);
+
+  // ── Multi-filter change handler ────────────────────────────────────────────
+  const handleMultiFilterChange = useCallback((key: string, values: string[]) => {
+    setFilters(prev => ({ ...prev, [key]: values }));
+  }, []);
+
+  // ── Distributor source toggle ──────────────────────────────────────────────
+  function handleDistributorSourceChange(source: DistributorSource) {
+    if (source === distributorSource) return;
+    if (source === 'geographical') {
+      handleSalesResetAll();
+    } else {
+      handleGeoResetAll();
+    }
+    setDistributorSource(source);
+  }
+
+  // ── Load distributor options (matching original exactly) ───────────────────
+  const loadDistributorOptions = useCallback(async (fieldKey: string) => {
+    if (!selectedReport) return;
+    setLoadingMap(prev => ({ ...prev, [fieldKey]: true }));
     try {
       let filterIds: string[] = [];
       let attemptedTargetedFetch = false;
 
-      // Geographic hierarchy → fetch suppliers under selected location
-      if (distributorSource === 'geographical' && geoConfig?.enabled) {
-        if (geoDrillDownPath.length > 0) {
-          const level = geoDrillDownPath[geoDrillDownPath.length - 1].level;
-          const values = geoDrillDownPath
-            .filter(item => item.level === level)
-            .map(item => item.value);
-          if (values.length > 0) {
-            attemptedTargetedFetch = true;
-            const supplierPromises = values.map(value =>
-              fetchLocationUsers(level, value, 'supplier')
-            );
-            const supplierResults = await Promise.all(supplierPromises);
-            filterIds = Array.from(new Set(supplierResults.flat().map(u => typeof u === 'string' ? u : u.loginId)));
-          }
+      if (distributorSource === 'geographical' && geoConfig?.enabled && geoDrillDownPath.length > 0) {
+        const level = geoDrillDownPath[geoDrillDownPath.length - 1].level;
+        const values = geoDrillDownPath.filter(i => i.level === level).map(i => i.value);
+        if (values.length > 0) {
+          attemptedTargetedFetch = true;
+          const results = await Promise.all(values.map(v => fetchLocationUsers(level, v, 'supplier')));
+          filterIds = Array.from(new Set(results.flat().map(u => typeof u === 'string' ? u : u.loginId)));
         }
       }
 
-      // Sales hierarchy → use supplier-level selections or fetch children
-      if (distributorSource === 'sales' && salesConfig?.enabled) {
+      if (distributorSource === 'sales' && salesConfig?.enabled && salesDrillDownPath.length > 0) {
         const hierarchyOrder = salesConfig.hierarchyOrder || [];
-        if (hierarchyOrder.length > 0 && salesDrillDownPath.length > 0) {
-          const supplierLevel = hierarchyOrder[hierarchyOrder.length - 1];
+        const supplierLevel = hierarchyOrder[hierarchyOrder.length - 1];
+        const supplierSelections = salesDrillDownPath.filter(i => i.level === supplierLevel).map(i => i.value);
 
-          const supplierSelections = salesDrillDownPath
-            .filter(item => item.level === supplierLevel)
-            .map(item => item.value);
-
-          if (supplierSelections.length > 0) {
+        if (supplierSelections.length > 0) {
+          attemptedTargetedFetch = true;
+          filterIds = supplierSelections;
+        } else {
+          const targetParent = [...salesDrillDownPath].reverse().find(item => {
+            const li = hierarchyOrder.indexOf(item.level);
+            const si = hierarchyOrder.indexOf(supplierLevel);
+            return li !== -1 && si !== -1 && li < si;
+          });
+          if (targetParent) {
             attemptedTargetedFetch = true;
-            filterIds = supplierSelections;
-          } else {
-            // Find deepest parent above supplier level
-            const targetParent = [...salesDrillDownPath]
-              .reverse()
-              .find(item => {
-                const levelIndex = hierarchyOrder.indexOf(item.level);
-                const supplierIndex = hierarchyOrder.indexOf(supplierLevel);
-                return levelIndex !== -1 && supplierIndex !== -1 && levelIndex < supplierIndex;
-              });
-
-            if (targetParent) {
-              attemptedTargetedFetch = true;
-              const parentSelections = salesDrillDownPath
-                .filter(item => item.level === targetParent.level)
-                .map(item => item.value);
-
-              const childrenPromises = parentSelections.map(userId =>
-                fetchChildrenUsers(userId, supplierLevel)
-              );
-              const childrenResults = await Promise.all(childrenPromises);
-              filterIds = Array.from(new Set(childrenResults.flat().map(u => typeof u === 'string' ? u : u.loginId)));
-            }
+            const parentSelections = salesDrillDownPath.filter(i => i.level === targetParent.level).map(i => i.value);
+            const results = await Promise.all(parentSelections.map(uid => fetchChildrenUsers(uid, supplierLevel)));
+            filterIds = Array.from(new Set(results.flat().map(u => typeof u === 'string' ? u : u.loginId)));
           }
         }
       }
 
-      // Fallback: fetch all suppliers under logged-in user
       if (filterIds.length === 0 && !attemptedTargetedFetch) {
         const loggedInUser = JSON.parse(localStorage.getItem('authContext') ?? '{}')?.user;
         const designation = loggedInUser?.designation || [];
@@ -282,136 +377,125 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
         }
       }
 
-      // Cross-filter by distributor type/division using cached features
+      const selectedTypes = filters['distributor_type'] || [];
+      const selectedDivisions = filters['distributor_division'] || [];
       let filteredLoginIds: string[];
       if ((selectedTypes.length > 0 || selectedDivisions.length > 0) && distributorFeatures.length > 0) {
-        filteredLoginIds = filterDistributorsBySelections(
-          distributorFeatures,
-          selectedTypes,
-          selectedDivisions,
-          filterIds.length > 0 ? filterIds : undefined
-        );
+        filteredLoginIds = filterDistributorsBySelections(distributorFeatures, selectedTypes, selectedDivisions, filterIds.length > 0 ? filterIds : undefined);
       } else {
         filteredLoginIds = filterIds;
       }
 
-      setDistributorOptions(filteredLoginIds.map(id => ({ label: id, value: id })));
+      const opts = filteredLoginIds.map(u => ({ label: u, value: u }));
+      setOptionsMap(prev => ({ ...prev, [fieldKey]: opts }));
     } catch {
-      setDistributorOptions([]);
+      setOptionsMap(prev => ({ ...prev, [fieldKey]: [] }));
     } finally {
-      setDistributorLoading(false);
+      setLoadingMap(prev => ({ ...prev, [fieldKey]: false }));
     }
-  }, [distConfig, geoConfig, salesConfig, distributorSource, geoDrillDownPath, salesDrillDownPath, selectedTypes, selectedDivisions, distributorFeatures]);
+  }, [selectedReport, geoConfig, salesConfig, distributorSource, geoDrillDownPath, salesDrillDownPath, filters, distributorFeatures]);
+
+  // ── Custom filter options ──────────────────────────────────────────────────
+  const loadFilterOptions = useCallback(async (key: string) => {
+    setLoadingMap(prev => ({ ...prev, [key]: true }));
+    try {
+      const locationFilters = buildLocationFilters(geoDrillDownPath);
+      const userFilters = buildUserFilters(salesDrillDownPath, salesConfig?.hierarchyOrder || []);
+      const distributorCodes = distributorFieldKey ? (filters[distributorFieldKey] || []) : [];
+
+      const distributorFilterPayload = (locationFilters.length > 0 || userFilters.length > 0)
+        ? { locationFilters: locationFilters.length > 0 ? locationFilters : undefined, userFilters: userFilters.length > 0 ? userFilters : undefined }
+        : undefined;
+
+      const additionalFilters: Record<string, string[]> | undefined = distributorCodes.length > 0
+        ? { distributor_code: distributorCodes }
+        : undefined;
+
+      let since: string | undefined;
+      let until: string | undefined;
+      if (reportConfig.dateRangeFilter && fromDate && toDate) {
+        since = new Date(Date.UTC(fromDate.year(), fromDate.month(), fromDate.date() - 1, 18, 30, 0)).toISOString().replace(/\.\d{3}Z$/, 'Z');
+        until = new Date(Date.UTC(toDate.year(), toDate.month(), toDate.date(), 18, 29, 59)).toISOString().replace(/\.\d{3}Z$/, 'Z');
+      }
+
+      const values = await fetchFilterValues({
+        report: reportConfig.filterReportName ?? reportConfig.reportName,
+        which: key,
+        additionalFilters,
+        since,
+        until,
+        distributorFilter: distributorFilterPayload,
+      });
+      const opts = values.filter(v => v && String(v).trim() !== '').map(v => ({ label: String(v), value: String(v) }));
+      setOptionsMap(prev => ({ ...prev, [key]: opts }));
+    } catch {
+      setOptionsMap(prev => ({ ...prev, [key]: [] }));
+    } finally {
+      setLoadingMap(prev => ({ ...prev, [key]: false }));
+    }
+  }, [reportConfig, fromDate, toDate, geoDrillDownPath, salesDrillDownPath, salesConfig, filters, distributorFieldKey]);
+
+  const handleFilterOpen = useCallback((key: string) => {
+    if (key === distributorFieldKey) return;
+    const hasOpts = optionsMap[key]?.length > 0;
+    if (!hasOpts) loadFilterOptions(key);
+  }, [distributorFieldKey, optionsMap, loadFilterOptions]);
+
+  // ── Reset ──────────────────────────────────────────────────────────────────
+  function handleReset() {
+    setFilters({});
+    setSalesDrillDownPath([]);
+    setGeoDrillDownPath([]);
+    setSalesOptionsCache({});
+    setGeoOptionsCache({});
+    setShowPreview(false);
+    setFromDate(dayjs()); setToDate(dayjs());
+    setDateFilterKey(prev => prev + 1);
+    // Re-populate type/division options
+    setOptionsMap(prev => ({
+      distributor_type: prev.distributor_type || [],
+      distributor_division: prev.distributor_division || [],
+    }));
+  }
 
   function showNotif(msg: string, type: 'success' | 'error') {
     setNotification({ msg, type });
     setTimeout(() => setNotification(null), 4000);
   }
 
-  function handleReset() {
-    setSalesLevel(null); setSalesValues([]);
-    setGeoLevel(null); setGeoValues([]);
-    setSelectedDistributors([]);
-    setSelectedTypes([]); setSelectedDivisions([]);
-    setCustomFilterSelections({});
-    setShowPreview(false);
-    setFromDate(dayjs()); setToDate(dayjs());
-    setDateFilterKey(prev => prev + 1);
-  }
-
-  function handleDistributorSourceChange(source: 'geographical' | 'sales') {
-    if (source === distributorSource) return;
-    // Clear opposite hierarchy
-    if (source === 'geographical') {
-      setSalesLevel(null); setSalesValues([]);
-    } else {
-      setGeoLevel(null); setGeoValues([]);
-    }
-    setSelectedDistributors([]);
-    setDistributorOptions([]);
-    setDistributorSource(source);
-  }
-
-  // Clear distributor selection when hierarchy path, type, or division changes
-  // (matches original's useEffect at ~line 2132)
-  useEffect(() => {
-    if (distConfig?.enabled) {
-      setSelectedDistributors([]);
-      setDistributorOptions([]);
-    }
-  }, [
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    JSON.stringify(geoDrillDownPath),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    JSON.stringify(salesDrillDownPath),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    JSON.stringify(selectedTypes),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    JSON.stringify(selectedDivisions),
-    distributorSource,
-  ]);
-
-  // ── Combined filters map ─────────────────────────────────────────────────────
-  const allFilters: Record<string, string[]> = {
-    ...customFilterSelections,
-    ...(selectedDistributors.length > 0 ? { distributor_code: selectedDistributors } : {}),
-    ...(selectedTypes.length > 0 ? { distributor_type: selectedTypes } : {}),
-    ...(selectedDivisions.length > 0 ? { distributor_division: selectedDivisions } : {}),
-  };
-
-  // ── Filter chips ─────────────────────────────────────────────────────────────
-  type Chip = { key: string; label: string; value: string; count?: number; onRemove: () => void };
-  const chips: Chip[] = [];
-
-  if (selectedTypes.length > 0) {
-    chips.push({
-      key: 'distributor_type', label: 'Distributor type', value: selectedTypes[0],
-      count: selectedTypes.length > 1 ? selectedTypes.length - 1 : undefined,
-      onRemove: () => setSelectedTypes([]),
-    });
-  }
-  if (selectedDivisions.length > 0) {
-    chips.push({
-      key: 'distributor_division', label: 'Distributor division', value: selectedDivisions[0],
-      count: selectedDivisions.length > 1 ? selectedDivisions.length - 1 : undefined,
-      onRemove: () => setSelectedDivisions([]),
-    });
-  }
-  if (selectedDistributors.length > 0) {
-    chips.push({
-      key: 'distributor', label: 'Distributor', value: selectedDistributors[0],
-      count: selectedDistributors.length > 1 ? selectedDistributors.length - 1 : undefined,
-      onRemove: () => setSelectedDistributors([]),
-    });
-  }
-  if (geoLevel && geoValues.length > 0) {
-    chips.push({
-      key: 'geo', label: geoLevel, value: geoValues[0],
-      count: geoValues.length > 1 ? geoValues.length - 1 : undefined,
-      onRemove: () => { setGeoLevel(null); setGeoValues([]); },
-    });
-  }
-  if (salesLevel && salesValues.length > 0) {
-    chips.push({
-      key: 'sales', label: salesLevel, value: salesValues[0],
-      count: salesValues.length > 1 ? salesValues.length - 1 : undefined,
-      onRemove: () => { setSalesLevel(null); setSalesValues([]); },
-    });
-  }
-
-  // ── Download ─────────────────────────────────────────────────────────────────
+  // ── Download ───────────────────────────────────────────────────────────────
   async function handleDownload(format: string) {
     setDownloading(true);
     setDownloadMenuOpen(false);
     try {
+      // Build clean filters — only custom filter selections + distributor_code
+      // Exclude all hierarchy-internal keys (levels, values, type, division)
+      const excludeKeys = new Set<string>();
+      if (salesConfig?.levelFilterField) excludeKeys.add(salesConfig.levelFilterField);
+      if (salesConfig?.valueFilterField) excludeKeys.add(salesConfig.valueFilterField);
+      if (geoConfig?.levelFilterField) excludeKeys.add(geoConfig.levelFilterField);
+      if (geoConfig?.valueFilterField) excludeKeys.add(geoConfig.valueFilterField);
+      (salesConfig?.hierarchyOrder || []).forEach(l => excludeKeys.add(l));
+      geoHierarchyOrder.forEach(l => excludeKeys.add(l));
+      excludeKeys.add('distributor_type');
+      excludeKeys.add('distributor_division');
+
+      const cleanFilters: Record<string, string[]> = {};
+      for (const [key, values] of Object.entries(filters)) {
+        if (excludeKeys.has(key)) continue;
+        if (values && values.length > 0 && values[0] !== '') {
+          cleanFilters[key] = values;
+        }
+      }
+
       await downloadReport({
         selectedReport: reportConfig,
-        filters: allFilters,
-        dateRangeType: reportConfig.periodFilter ? 'period' : 'daterange',
+        filters: cleanFilters,
+        dateRangeType: 'daterange',
         fromDate,
         toDate,
         format,
-        primaryFilter,
+        primaryFilter: null,
         customFilters: customFilters.map(f => f.alias),
         salesDrillDownPath,
         geoDrillDownPath,
@@ -424,25 +508,33 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
     }
   }
 
+  // ── Filter chips ───────────────────────────────────────────────────────────
+  type Chip = { key: string; label: string; value: string; count?: number; onRemove: () => void };
+  const chips: Chip[] = [];
+
+  if (filters['distributor_type']?.length > 0) {
+    const v = filters['distributor_type'];
+    chips.push({ key: 'distributor_type', label: 'Distributor type', value: v[0], count: v.length > 1 ? v.length - 1 : undefined, onRemove: () => handleMultiFilterChange('distributor_type', []) });
+  }
+  if (filters['distributor_division']?.length > 0) {
+    const v = filters['distributor_division'];
+    chips.push({ key: 'distributor_division', label: 'Distributor division', value: v[0], count: v.length > 1 ? v.length - 1 : undefined, onRemove: () => handleMultiFilterChange('distributor_division', []) });
+  }
+  if (distributorFieldKey && filters[distributorFieldKey]?.length > 0) {
+    const v = filters[distributorFieldKey];
+    chips.push({ key: 'distributor', label: 'Distributor', value: v[0], count: v.length > 1 ? v.length - 1 : undefined, onRemove: () => handleMultiFilterChange(distributorFieldKey, []) });
+  }
+  // TODO: Add geo/sales path chips if needed
+
   const noPreviewText =
     reportConfig.isLiveReport ? 'Live reports cannot be previewed. Kindly download the report to continue.'
     : reportConfig.isPDFReport ? 'PDF reports cannot be previewed. Kindly download the report to continue.'
     : reportConfig.isGSTRReport ? 'GSTR reports cannot be previewed. Kindly download the report to continue.'
     : 'This report cannot be previewed. Kindly download the report to continue.';
 
-  const memoizedDateRange = useMemo(() => ({
-    type: 'daterange' as const,
-    fromDate: fromDate?.format('DD-MM-YYYY') ?? dayjs().format('DD-MM-YYYY'),
-    toDate: toDate?.format('DD-MM-YYYY') ?? dayjs().format('DD-MM-YYYY'),
-    selectedRange: 'custom',
-  }), [fromDate, toDate]);
-
   return (
     <div className="sc-report-page">
-      {/* Toast */}
-      {notification && (
-        <div className={`sc-notification ${notification.type}`}>{notification.msg}</div>
-      )}
+      {notification && <div className={`sc-notification ${notification.type}`}>{notification.msg}</div>}
 
       {/* ── Row 1: Back + Title + Date picker ── */}
       <div className="sc-report-header">
@@ -457,36 +549,18 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
             <span className="sc-title-chevron">▾</span>
           </div>
         </div>
-
         <div className="sc-report-header-right">
           {reportConfig.dateRangeFilter && (
             <div className="sc-date-wrap">
-              {reportConfig.isGSTRReport && (
-                <>
-                  <span className="sc-date-range-label">Month & Year</span>
-                  <span className="sc-date-range-asterisk">*</span>
-                </>
-              )}
+              <span className="sc-date-range-label">{reportConfig.isGSTRReport ? 'Month & Year' : 'Date Range'}</span>
+              <span className="sc-date-range-asterisk">*</span>
               {reportConfig.isGSTRReport ? (
-                <GSTRMonthYearPicker
-                  key={dateFilterKey}
-                  selectedMonth={null}
-                  selectedYear={null}
-                  onChange={(m, y) => {
-                    setFromDate(dayjs().month(m).year(y).startOf('month'));
-                    setToDate(dayjs().month(m).year(y).endOf('month'));
-                  }}
-                  yearsRange={reportConfig.gstrYearsRange ?? 3}
-                />
+                <GSTRMonthYearPicker key={dateFilterKey} selectedMonth={null} selectedYear={null}
+                  onChange={(m, y) => { setFromDate(dayjs().month(m).year(y).startOf('month')); setToDate(dayjs().month(m).year(y).endOf('month')); }}
+                  yearsRange={reportConfig.gstrYearsRange ?? 3} />
               ) : (
-                <NewDateFilter
-                  key={dateFilterKey}
-                  fromDate={fromDate}
-                  toDate={toDate}
-                  onFromChange={setFromDate}
-                  onToChange={setToDate}
-                  dateRangeAllowed={reportConfig.dateRangeAllowed}
-                />
+                <NewDateFilter key={dateFilterKey} fromDate={fromDate} toDate={toDate}
+                  onFromChange={setFromDate} onToChange={setToDate} dateRangeAllowed={reportConfig.dateRangeAllowed} />
               )}
             </div>
           )}
@@ -499,87 +573,64 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
           {!isDistributorView && (
             <TopFilterBar
               selectedReport={reportConfig}
-              distributorTypeOptions={distributorMeta?.types.map(t => ({ label: t, value: t })) ?? []}
-              distributorDivisionOptions={distributorMeta?.divisions.map(d => ({ label: d, value: d })) ?? []}
-              selectedTypes={selectedTypes}
-              selectedDivisions={selectedDivisions}
-              onTypeChange={setSelectedTypes}
-              onDivisionChange={setSelectedDivisions}
+              distributorTypeOptions={optionsMap['distributor_type'] || []}
+              distributorDivisionOptions={optionsMap['distributor_division'] || []}
+              selectedTypes={filters['distributor_type'] || []}
+              selectedDivisions={filters['distributor_division'] || []}
+              onTypeChange={values => handleMultiFilterChange('distributor_type', values)}
+              onDivisionChange={values => handleMultiFilterChange('distributor_division', values)}
               distributorSource={distributorSource}
               onDistributorSourceChange={handleDistributorSourceChange}
               geoEnabled={geoEnabled}
               geoDisabled={!isGeoActive}
               geoChildren={
-                geoConfig ? (
-                  <GeographicalHierarchyFilter
-                    config={geoConfig}
-                    selectedLevel={geoLevel}
-                    selectedValues={geoValues}
-                    onApply={(level, values) => {
-                      setGeoLevel(level); setGeoValues(values);
-                      setSalesLevel(null); setSalesValues([]);
-                    }}
-                    onReset={() => { setGeoLevel(null); setGeoValues([]); }}
-                    onClose={() => {}}
-                  />
-                ) : <div />
+                <GeographicalHierarchyFilter
+                  selectedReport={reportConfig}
+                  filters={filters}
+                  optionsMap={optionsMap}
+                  loadingMap={loadingMap}
+                  onLevelChange={handleGeoLevelChange}
+                  onValueChange={handleGeoValueChange}
+                  onLoadLevels={loadGeographicalLevels}
+                  onNextLevel={handleGeoNextLevel}
+                  onResetAll={handleGeoResetAll}
+                />
               }
               isHierarchySyncing={isHierarchySyncing}
               salesEnabled={salesEnabled}
               salesDisabled={!isSalesActive}
               salesChildren={
-                salesConfig ? (
-                  <SalesHierarchyFilter
-                    config={salesConfig}
-                    selectedLevel={salesLevel}
-                    selectedValues={salesValues}
-                    onApply={(level, values) => {
-                      setSalesLevel(level); setSalesValues(values);
-                      setGeoLevel(null); setGeoValues([]);
-                    }}
-                    onReset={() => { setSalesLevel(null); setSalesValues([]); }}
-                    onClose={() => {}}
-                  />
-                ) : <div />
+                <SalesHierarchyFilter
+                  selectedReport={reportConfig}
+                  filters={filters}
+                  optionsMap={optionsMap}
+                  loadingMap={loadingMap}
+                  onLevelChange={handleSalesLevelChange}
+                  onValueChange={handleSalesValueChange}
+                  onLoadLevels={loadSalesLevels}
+                  onNextLevel={handleSalesNextLevel}
+                  onResetAll={handleSalesResetAll}
+                />
               }
-              distributorOptions={distributorOptions}
-              selectedDistributors={selectedDistributors}
-              onDistributorChange={setSelectedDistributors}
-              distributorLoading={distributorLoading}
-              onDistributorOpen={loadDistributorOptions}
+              distributorOptions={distributorFieldKey ? (optionsMap[distributorFieldKey] || []) : []}
+              selectedDistributors={distributorFieldKey ? (filters[distributorFieldKey] || []) : []}
+              onDistributorChange={values => distributorFieldKey && handleMultiFilterChange(distributorFieldKey, values)}
+              distributorLoading={distributorFieldKey ? (loadingMap[distributorFieldKey] || false) : false}
+              onDistributorOpen={() => distributorFieldKey && loadDistributorOptions(distributorFieldKey)}
               showDistributorFilter={!!distConfig?.enabled && !isDistributorView}
               onReset={handleReset}
             />
           )}
         </div>
-
-        {/* Action buttons */}
         <div className="sc-filter-actions">
           {!noPreview && (
-            <button
-              className="sc-btn-preview"
-              onClick={() => setShowPreview(v => !v)}
-              disabled={isPreviewDisabled}
-            >
-              {showPreview ? 'Preview' : 'Preview'}
-            </button>
+            <button className="sc-btn-preview" onClick={() => setShowPreview(true)} disabled={isPreviewDisabled}>Preview</button>
           )}
-
           <div className="sc-download-wrap" ref={downloadMenuRef}>
-            <button
-              className="sc-btn-download"
-              onClick={() => !downloading && setDownloadMenuOpen(v => !v)}
-              disabled={downloading || isDownloadDisabled}
-            >
-              {downloading ? (
-                <><span className="sc-download-spinner" />Downloading...</>
-              ) : (
-                <>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-                  </svg>
-                  Download
-                </>
+            <button className="sc-btn-download" onClick={() => !downloading && setDownloadMenuOpen(v => !v)} disabled={downloading || isDownloadDisabled}>
+              {downloading ? (<><span className="sc-download-spinner" />Downloading...</>) : (
+                <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download</>
               )}
             </button>
             {downloadMenuOpen && !downloading && (
@@ -588,12 +639,10 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
                   <div className="sc-download-menu-item" onClick={() => handleDownload('pdf')}>PDF</div>
                 ) : reportConfig.isGSTRReport || reportConfig.customDownload ? (
                   <div className="sc-download-menu-item" onClick={() => handleDownload('xlsx')}>XLS</div>
-                ) : (
-                  <>
-                    <div className="sc-download-menu-item" onClick={() => handleDownload('csv')}>CSV</div>
-                    <div className="sc-download-menu-item" onClick={() => handleDownload('xlsx')}>XLS</div>
-                  </>
-                )}
+                ) : (<>
+                  <div className="sc-download-menu-item" onClick={() => handleDownload('csv')}>CSV</div>
+                  <div className="sc-download-menu-item" onClick={() => handleDownload('xlsx')}>XLS</div>
+                </>)}
               </div>
             )}
           </div>
@@ -603,7 +652,7 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
       {/* ── Row 3: Filter chips ── */}
       {chips.length > 0 && (
         <div className="sc-filter-chips">
-          {chips.map((chip) => (
+          {chips.map(chip => (
             <span key={chip.key} className="sc-chip">
               <span className="sc-chip-key">{chip.label}: </span>
               <strong>{chip.value || '--'}</strong>
@@ -614,16 +663,16 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
         </div>
       )}
 
-      {/* ── Row 4: Content area (matches original mdm-reports-left-section) ── */}
+      {/* ── Row 4: Preview ── */}
       <div className="sc-report-content">
         <MdmReportsPreview
           reportConfig={reportConfig}
-          filters={allFilters}
+          filters={filters}
           fromDate={fromDate}
           toDate={toDate}
           salesDrillDownPath={salesDrillDownPath}
           geoDrillDownPath={geoDrillDownPath}
-          primaryFilter={primaryFilter}
+          primaryFilter={null}
           customFilters={customFilters}
           showPreview={showPreview && !noPreview}
           noPreviewText={noPreviewText}

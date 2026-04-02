@@ -1,81 +1,101 @@
-import React, { useEffect, useRef, useState } from 'react';
-import type { SalesHierarchyFilter as SalesHierarchyFilterConfig } from '../types/mdmReportsUtils';
-import { fetchUsersByDesignation } from '../services/reportsDataService';
+import React, { useEffect, useMemo, useState } from 'react';
+import type { newReportConfig } from '../types/mdmReportsUtils';
 import '../components/HierarchyDropdown.css';
 
 interface SalesHierarchyFilterProps {
-  config: SalesHierarchyFilterConfig;
-  selectedLevel: string | null;
-  selectedValues: string[];
-  onApply: (level: string, values: string[]) => void;
-  onReset: () => void;
-  onClose: () => void;
+  selectedReport: newReportConfig;
+  filters: Record<string, string[]>;
+  optionsMap: Record<string, { label: string; value: string }[]>;
+  loadingMap: Record<string, boolean>;
+  onLevelChange: (value: string | null) => void;
+  onValueChange: (values: string[]) => void;
+  onLoadLevels: () => void;
+  onNextLevel?: () => void;
+  onDropdownClose?: () => void;
+  onResetAll?: () => void;
 }
 
 export function SalesHierarchyFilter({
-  config,
-  selectedLevel,
-  selectedValues,
-  onApply,
-  onReset,
-  onClose,
+  selectedReport,
+  filters,
+  optionsMap,
+  loadingMap,
+  onLevelChange,
+  onValueChange,
+  onLoadLevels,
+  onNextLevel,
+  onDropdownClose,
+  onResetAll,
 }: SalesHierarchyFilterProps) {
-  const levels = config.hierarchyOrder ?? [];
-  const [activeLevel, setActiveLevel] = useState<string | null>(selectedLevel ?? (levels[0] || null));
-  const [levelValues, setLevelValues] = useState<Record<string, { label: string; value: string }[]>>({});
-  const [loadingLevel, setLoadingLevel] = useState<string | null>(null);
-  const [localValues, setLocalValues] = useState<string[]>(selectedValues);
-  const [search, setSearch] = useState('');
+  const isEnabled = !!selectedReport?.salesHierarchyFilter?.enabled;
+  const [searchTerm, setSearchTerm] = useState('');
 
-  // Load values for initial active level
   useEffect(() => {
-    if (activeLevel) loadLevelValues(activeLevel);
-  }, []);
+    if (isEnabled) onLoadLevels();
+  }, [isEnabled, onLoadLevels]);
 
-  async function loadLevelValues(level: string) {
-    if (levelValues[level]) return;
-    setLoadingLevel(level);
-    try {
-      const users = await fetchUsersByDesignation(level);
-      setLevelValues(prev => ({
-        ...prev,
-        [level]: users.map(u => ({ label: (u.name as string) || u.loginId, value: u.userId })),
-      }));
-    } catch {
-      setLevelValues(prev => ({ ...prev, [level]: [] }));
-    } finally {
-      setLoadingLevel(null);
+  const hierarchyOrder = selectedReport?.salesHierarchyFilter?.hierarchyOrder || [];
+  const levelKey = selectedReport?.salesHierarchyFilter?.levelFilterField || '';
+  const currentLevel = filters[levelKey]?.[0];
+  const valueKey = currentLevel || '';
+  const currentValues = filters[valueKey] || [];
+
+  const levelOptions = useMemo(() => {
+    if (hierarchyOrder.length > 0) {
+      return hierarchyOrder.filter(level => level !== 'supplier');
+    }
+    return (optionsMap[levelKey] || []).map(o => o.value).filter(l => l !== 'supplier');
+  }, [hierarchyOrder, optionsMap, levelKey]);
+
+  const options = useMemo(() => optionsMap[valueKey] || [], [optionsMap, valueKey]);
+
+  const filteredOptions = useMemo(() => {
+    if (!searchTerm.trim()) return options;
+    const lowered = searchTerm.toLowerCase();
+    return options.filter(o => o.label.toLowerCase().includes(lowered));
+  }, [options, searchTerm]);
+
+  const allOptionValues = useMemo(() => options.map(o => o.value), [options]);
+  const isAllSelected = allOptionValues.length > 0 && allOptionValues.every(v => currentValues.includes(v));
+
+  function handleOptionToggle(optionValue: string) {
+    if (!currentLevel) return;
+    const updated = currentValues.includes(optionValue)
+      ? currentValues.filter(v => v !== optionValue)
+      : [...currentValues, optionValue];
+    onValueChange(updated);
+  }
+
+  function handleSelectAllToggle() {
+    if (!currentLevel) return;
+    onValueChange(isAllSelected ? [] : allOptionValues);
+  }
+
+  function handleReset() {
+    setSearchTerm('');
+    if (onResetAll) {
+      onResetAll();
+    } else {
+      if (currentLevel) onValueChange([]);
+      onLevelChange(null);
     }
   }
 
-  function handleLevelClick(level: string) {
-    setActiveLevel(level);
-    setLocalValues([]);
-    setSearch('');
-    loadLevelValues(level);
+  function handleApply() {
+    if (onNextLevel) onNextLevel();
+    onDropdownClose?.();
   }
 
-  function toggleValue(val: string) {
-    setLocalValues(prev =>
-      prev.includes(val) ? prev.filter(v => v !== val) : [...prev, val]
-    );
-  }
-
-  const currentOptions = activeLevel ? (levelValues[activeLevel] ?? []) : [];
-  const filteredLevels = search
-    ? levels.filter(l => l.toLowerCase().includes(search.toLowerCase()))
-    : levels;
-  const filteredValues = search
-    ? currentOptions.filter(o => o.label.toLowerCase().includes(search.toLowerCase()))
-    : currentOptions;
+  if (!isEnabled) return null;
 
   return (
     <div className="sc-hierarchy-popup" onClick={e => e.stopPropagation()}>
       <div className="sc-hierarchy-popup-search">
         <input
           placeholder="Search"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+          disabled={!currentLevel}
           autoFocus
         />
       </div>
@@ -83,11 +103,11 @@ export function SalesHierarchyFilter({
       <div className="sc-hierarchy-popup-body">
         {/* Left: levels */}
         <div className="sc-hierarchy-levels-col">
-          {filteredLevels.map(level => (
+          {levelOptions.map(level => (
             <div
               key={level}
-              className={`sc-hierarchy-level-item${activeLevel === level ? ' active' : ''}`}
-              onClick={() => handleLevelClick(level)}
+              className={`sc-hierarchy-level-item${currentLevel === level ? ' active' : ''}`}
+              onClick={() => onLevelChange(level)}
             >
               {level}
             </div>
@@ -96,45 +116,48 @@ export function SalesHierarchyFilter({
 
         {/* Right: values */}
         <div className="sc-hierarchy-values-col">
-          {!activeLevel ? (
-            <div className="sc-hierarchy-empty">Select a level from the left</div>
-          ) : loadingLevel === activeLevel ? (
-            <div className="sc-hierarchy-loading">Loading...</div>
-          ) : filteredValues.length === 0 ? (
+          {!currentLevel ? (
+            <div className="sc-hierarchy-empty">Select a level to view users</div>
+          ) : loadingMap[valueKey] ? (
+            <div className="sc-hierarchy-loading">
+              <div className="sc-hierarchy-spinner" />
+            </div>
+          ) : filteredOptions.length === 0 ? (
             <div className="sc-hierarchy-empty">No options available</div>
           ) : (
-            filteredValues.map(opt => (
-              <div
-                key={opt.value}
-                className="sc-hierarchy-value-item"
-                onClick={() => toggleValue(opt.value)}
-              >
+            <>
+              <div className="sc-hierarchy-value-item" onClick={handleSelectAllToggle} style={{ borderBottom: '1px solid #f1f5f9' }}>
                 <input
                   type="checkbox"
-                  checked={localValues.includes(opt.value)}
-                  onChange={() => toggleValue(opt.value)}
+                  checked={isAllSelected}
+                  onChange={handleSelectAllToggle}
                   onClick={e => e.stopPropagation()}
                 />
-                {opt.label}
+                <span style={{ fontWeight: 500 }}>Select all</span>
               </div>
-            ))
+              {filteredOptions.map(opt => (
+                <div
+                  key={opt.value}
+                  className="sc-hierarchy-value-item"
+                  onClick={() => handleOptionToggle(opt.value)}
+                >
+                  <input
+                    type="checkbox"
+                    checked={currentValues.includes(opt.value)}
+                    onChange={() => handleOptionToggle(opt.value)}
+                    onClick={e => e.stopPropagation()}
+                  />
+                  <span>{opt.label}</span>
+                </div>
+              ))}
+            </>
           )}
         </div>
       </div>
 
       <div className="sc-hierarchy-popup-footer">
-        <button className="sc-btn-reset-sm" onClick={() => { onReset(); onClose(); }}>
-          Reset
-        </button>
-        <button
-          className="sc-btn-apply-sm"
-          onClick={() => {
-            if (activeLevel) onApply(activeLevel, localValues);
-            onClose();
-          }}
-        >
-          Apply
-        </button>
+        <button className="sc-btn-reset-sm" onClick={handleReset}>Reset</button>
+        <button className="sc-btn-apply-sm" onClick={handleApply} disabled={!currentLevel}>Apply</button>
       </div>
     </div>
   );

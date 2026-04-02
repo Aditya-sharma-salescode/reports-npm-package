@@ -138,25 +138,48 @@ function buildFiltersMap(
     map['distributor_code'] = distributorCodes;
   }
 
-  const hierarchyLevelKeys = new Set([
-    selectedReport.salesHierarchyFilter?.levelFilterField,
-    selectedReport.salesHierarchyFilter?.valueFilterField,
-    selectedReport.geographicalHierarchyFilter?.levelFilterField,
-    selectedReport.geographicalHierarchyFilter?.valueFilterField,
-  ]);
+  // Keys to exclude: hierarchy level fields, all hierarchy level names, distributor field
+  const excludeKeys = new Set<string>();
 
-  const mergedSourceAliases = new Set<string>();
+  // Exclude level filter field keys
+  if (selectedReport.salesHierarchyFilter?.levelFilterField)
+    excludeKeys.add(selectedReport.salesHierarchyFilter.levelFilterField);
+  if (selectedReport.salesHierarchyFilter?.valueFilterField)
+    excludeKeys.add(selectedReport.salesHierarchyFilter.valueFilterField);
+  if (selectedReport.geographicalHierarchyFilter?.levelFilterField)
+    excludeKeys.add(selectedReport.geographicalHierarchyFilter.levelFilterField);
+  if (selectedReport.geographicalHierarchyFilter?.valueFilterField)
+    excludeKeys.add(selectedReport.geographicalHierarchyFilter.valueFilterField);
+
+  // Exclude all individual hierarchy level names (e.g., saleshead, nsm, rsm, etc.)
+  if (selectedReport.salesHierarchyFilter?.hierarchyOrder) {
+    selectedReport.salesHierarchyFilter.hierarchyOrder.forEach(level => excludeKeys.add(level));
+  }
+  // Exclude geo hierarchy level names (dynamic — from API)
+  if (selectedReport.geographicalHierarchyFilter?.hierarchyOrder) {
+    selectedReport.geographicalHierarchyFilter.hierarchyOrder.forEach(level => excludeKeys.add(level));
+  }
+
+  // Exclude distributor field key (handled separately as distributor_code above)
+  if (selectedReport.distributorFilter?.field)
+    excludeKeys.add(selectedReport.distributorFilter.field);
+
+  // Exclude distributor_type and distributor_division (internal filter state)
+  excludeKeys.add('distributor_type');
+  excludeKeys.add('distributor_division');
+  excludeKeys.add('distributor_code');
+
+  // Exclude merged filter source aliases
   for (const sources of Object.values(selectedReport.mergedFilters ?? {})) {
     for (const src of sources) {
-      mergedSourceAliases.add(src.alias);
+      excludeKeys.add(src.alias);
     }
   }
 
+  // Only include custom filter selections and relevant non-hierarchy keys
   for (const [key, values] of Object.entries(filters)) {
-    if (key === 'distributor_code') continue;
-    if (hierarchyLevelKeys.has(key)) continue;
-    if (mergedSourceAliases.has(key)) continue;
-    if (values.length > 0) {
+    if (excludeKeys.has(key)) continue;
+    if (values && values.length > 0 && values[0] !== '') {
       map[key] = values;
     }
   }

@@ -62,6 +62,11 @@ export function MdmReportsPreview({
   const loadData = useCallback(
     async (p: number) => {
       if (!reportConfig?.reportName) return;
+      // Don't fetch for live/PDF/GSTR/custom-download reports, or when preview is not shown
+      if (isNoPreviewReport || !showPreview) {
+        setLoading(false);
+        return;
+      }
 
       const requestId = ++lastRequestIdRef.current;
       setLoading(true);
@@ -184,7 +189,7 @@ export function MdmReportsPreview({
         }
       }
     },
-    [reportConfig, fromDate, toDate, filters, salesDrillDownPath, geoDrillDownPath, customFilters]
+    [reportConfig, fromDate, toDate, filters, salesDrillDownPath, geoDrillDownPath, customFilters, showPreview, isNoPreviewReport]
   );
 
   useEffect(() => {
