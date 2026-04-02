@@ -108,7 +108,7 @@ export function useHierarchyLoaders({
 
     setLoadingMap(prev => ({ ...prev, [designation]: true }));
     try {
-      let users: string[] = [];
+      let users: { userId: string; name: string; loginId: string }[] = [];
 
       // Find closest parent with values
       let parentUsers: string[] = [];
@@ -141,12 +141,18 @@ export function useHierarchyLoaders({
         const allChildrenResults = await Promise.all(
           parentUsers.map(userId => fetchChildrenUsers(userId, designation))
         );
-        users = Array.from(new Set(allChildrenResults.flat()));
+        const allUsers = allChildrenResults.flat();
+        const seen = new Set<string>();
+        users = allUsers.filter(u => {
+          if (seen.has(u.userId)) return false;
+          seen.add(u.userId);
+          return true;
+        });
       } else {
         users = await fetchUsersByDesignation(designation);
       }
 
-      const opts = users.map(user => ({ label: String(user), value: String(user) }));
+      const opts = users.map(user => ({ label: user.name || user.loginId, value: user.userId }));
       setOptionsMap(prev => ({ ...prev, [designation]: opts }));
       setSalesOptionsCache(prev => ({ ...prev, [designation]: opts }));
     } catch {
@@ -252,7 +258,7 @@ export function useHierarchyLoaders({
         }
       }
 
-      let locations: string[];
+      let locations: { value: string; label: string }[];
       if (parentLocations.length > 0) {
         const parentLevel = parentLocations[0].level;
         const allResults = await Promise.all(
@@ -260,12 +266,18 @@ export function useHierarchyLoaders({
             fetchGeographicalLocationsUnder(parentLevel, loc.value, level)
           )
         );
-        locations = Array.from(new Set(allResults.flat()));
+        const allLocs = allResults.flat();
+        const seen = new Set<string>();
+        locations = allLocs.filter(l => {
+          if (seen.has(l.value)) return false;
+          seen.add(l.value);
+          return true;
+        });
       } else {
         locations = await fetchGeographicalLocations(level);
       }
 
-      const opts = locations.map(loc => ({ label: String(loc), value: String(loc) }));
+      const opts = locations.map(loc => ({ label: loc.label, value: loc.value }));
       setOptionsMap(prev => ({ ...prev, [level]: opts }));
       setGeoOptionsCache(prev => ({ ...prev, [level]: opts }));
     } catch {
