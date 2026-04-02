@@ -169,8 +169,6 @@ export function NewDateFilter({ fromDate, toDate, onFromChange, onToChange }: Ne
         className={`sc-date-range-btn${open ? ' open' : ''}`}
         onClick={() => setOpen(v => !v)}
       >
-        <span className="sc-date-range-label">Date Range</span>
-        <span className="sc-date-range-asterisk">*</span>
         <span className="sc-date-range-value">{displayText}</span>
       </button>
 
