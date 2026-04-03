@@ -19,7 +19,7 @@ export function ReportTiles({ reportCards, onSelect }: ReportTilesProps) {
 
   // Group by type
   const groups = filtered.reduce<Record<string, newReportConfig[]>>((acc, card) => {
-    const type = (card as newReportConfig & { type?: string }).type || 'Reports';
+    const type = card.type || 'Reports';
     if (!acc[type]) acc[type] = [];
     acc[type].push(card);
     return acc;

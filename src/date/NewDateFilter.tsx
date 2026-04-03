@@ -99,13 +99,11 @@ export function NewDateFilter({ fromDate, toDate, onFromChange, onToChange }: Ne
   const [open, setOpen] = useState(false);
   const [activePreset, setActivePreset] = useState<string>('Custom Date Filter');
   const [hoverDate, setHoverDate] = useState<Date | null>(null);
-  const [isSelectingEnd, setIsSelectingEnd] = useState(false);
   const [leftYear, setLeftYear] = useState(fromDate.year());
   const [leftMonth, setLeftMonth] = useState(fromDate.month());
+  const [rightYear, setRightYear] = useState(toDate.year());
+  const [rightMonth, setRightMonth] = useState(toDate.month());
   const wrapperRef = useRef<HTMLDivElement>(null);
-
-  const rightMonth = leftMonth === 11 ? 0 : leftMonth + 1;
-  const rightYear = leftMonth === 11 ? leftYear + 1 : leftYear;
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -127,32 +125,42 @@ export function NewDateFilter({ fromDate, toDate, onFromChange, onToChange }: Ne
     else setLeftMonth(m => m + 1);
   }
 
-  function handleDayClick(date: Date) {
+  function prevRightMonth() {
+    if (rightMonth === 0) { setRightMonth(11); setRightYear(y => y - 1); }
+    else setRightMonth(m => m - 1);
+  }
+
+  function nextRightMonth() {
+    if (rightMonth === 11) { setRightMonth(0); setRightYear(y => y + 1); }
+    else setRightMonth(m => m + 1);
+  }
+
+  function handleStartDayClick(date: Date) {
     const d = dayjs(date);
-    if (!isSelectingEnd) {
-      onFromChange(d.startOf('day'));
+    onFromChange(d.startOf('day'));
+    if (d.isAfter(toDate)) {
       onToChange(d.endOf('day'));
-      setIsSelectingEnd(true);
-      setActivePreset('Custom Date Filter');
-    } else {
-      if (date >= fromDate.toDate()) {
-        onToChange(d.endOf('day'));
-      } else {
-        onFromChange(d.startOf('day'));
-        onToChange(d.endOf('day'));
-      }
-      setIsSelectingEnd(false);
-      setActivePreset('Custom Date Filter');
     }
+    setActivePreset('Custom Date Filter');
+  }
+
+  function handleEndDayClick(date: Date) {
+    const d = dayjs(date);
+    onToChange(d.endOf('day'));
+    if (d.isBefore(fromDate)) {
+      onFromChange(d.startOf('day'));
+    }
+    setActivePreset('Custom Date Filter');
   }
 
   function applyPreset(label: string, from: Dayjs, to: Dayjs) {
     setActivePreset(label);
     onFromChange(from);
     onToChange(to);
-    setIsSelectingEnd(false);
     setLeftYear(from.year());
     setLeftMonth(from.month());
+    setRightYear(to.year());
+    setRightMonth(to.month());
   }
 
   const presets = [
@@ -183,7 +191,7 @@ export function NewDateFilter({ fromDate, toDate, onFromChange, onToChange }: Ne
                   if (p.label !== 'Custom Date Filter') {
                     applyPreset(p.label, p.from, p.to);
                   } else {
-                    setActivePreset('Custom Date Filter');
+                    applyPreset('Custom Date Filter', dayjs().startOf('day'), dayjs().endOf('day'));
                   }
                 }}
               >
@@ -198,8 +206,8 @@ export function NewDateFilter({ fromDate, toDate, onFromChange, onToChange }: Ne
               month={leftMonth}
               startDate={fromDate.toDate()}
               endDate={toDate.toDate()}
-              hoverDate={isSelectingEnd ? hoverDate : null}
-              onDayClick={handleDayClick}
+              hoverDate={hoverDate}
+              onDayClick={handleStartDayClick}
               onDayHover={setHoverDate}
               onPrev={prevMonth}
               disableNext={true}
@@ -209,11 +217,11 @@ export function NewDateFilter({ fromDate, toDate, onFromChange, onToChange }: Ne
               month={rightMonth}
               startDate={fromDate.toDate()}
               endDate={toDate.toDate()}
-              hoverDate={isSelectingEnd ? hoverDate : null}
-              onDayClick={handleDayClick}
+              hoverDate={hoverDate}
+              onDayClick={handleEndDayClick}
               onDayHover={setHoverDate}
-              disablePrev={true}
-              onNext={nextMonth}
+              onPrev={prevRightMonth}
+              onNext={nextRightMonth}
             />
           </div>
         </div>

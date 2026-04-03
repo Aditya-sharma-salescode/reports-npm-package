@@ -5,6 +5,7 @@ import { GSTRMonthYearPicker } from '../date/GSTRMonthYearPicker';
 import { SalesHierarchyFilter } from '../utils/SalesHierarchyFilter';
 import { GeographicalHierarchyFilter } from '../utils/GeographicalHierarchyFilter';
 import { TopFilterBar } from '../components/TopFilterBar';
+import { CompactCheckboxDropdown } from '../components/CompactCheckboxDropdown';
 import { useHierarchyLoaders } from '../hooks/useHierarchyLoaders';
 import { loadCustomFiltersForReport } from '../services/mdmCustomFiltersService';
 import { fetchFilterValues, fetchLocationUsers, fetchChildrenUsers } from '../services/reportsDataService';
@@ -18,6 +19,8 @@ import './MdmReportsFilter.css';
 interface MdmReportsNewFilterProps {
   reportConfig: newReportConfig;
   onBack: () => void;
+  reportCards?: newReportConfig[];
+  onSelectReport?: (config: newReportConfig) => void;
 }
 
 function isNoPreviewReport(config: newReportConfig) {
@@ -32,7 +35,13 @@ const resolveDefaultDistributorSource = (report: newReportConfig): DistributorSo
   return 'geographical';
 };
 
-export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilterProps) {
+export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelectReport }: MdmReportsNewFilterProps) {
+  // ── Report switcher dropdown ──────────────────────────────────────────────
+  const [reportDropdownOpen, setReportDropdownOpen] = useState(false);
+  const [reportSearch, setReportSearch] = useState('');
+  const reportDropdownRef = useRef<HTMLDivElement>(null);
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+
   // ── Centralized state (matches original's pattern) ─────────────────────────
   const [filters, setFilters] = useState<Record<string, string[]>>({});
   const [optionsMap, setOptionsMap] = useState<Record<string, { label: string; value: string }[]>>({});
@@ -50,6 +59,7 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
   // Custom filters
   const [customFilters, setCustomFilters] = useState<FilterOption[]>([]);
   const [customFiltersLoading, setCustomFiltersLoading] = useState(false);
+  const [customFilterSelectionOrder, setCustomFilterSelectionOrder] = useState<string[]>([]);
 
   // Date
   const [fromDate, setFromDate] = useState<Dayjs>(dayjs());
@@ -106,8 +116,9 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
   const hasGeoDrillDown = geoDrillDownPath.length > 0;
   const hasDirectDistributor = distributorFieldKey ? (filters[distributorFieldKey]?.length > 0) : false;
   const hasFilters = hasSalesDrillDown || hasGeoDrillDown || hasDirectDistributor || isDistributorView;
-  const isPreviewDisabled = !hasFilters;
-  const isDownloadDisabled = !hasFilters;
+  const validationDisabled = reportConfig.disableValidation !== false;
+  const isPreviewDisabled = validationDisabled ? false : !hasFilters;
+  const isDownloadDisabled = validationDisabled ? false : !hasFilters;
 
   // ── Load on mount ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -140,6 +151,18 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
     loadCustom();
   }, [reportConfig]);
 
+  // Close report dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (reportDropdownRef.current && !reportDropdownRef.current.contains(e.target as Node)) {
+        setReportDropdownOpen(false);
+        setReportSearch('');
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   // Close download menu on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -167,6 +190,21 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
     JSON.stringify(filters['distributor_division']),
     distributorSource,
   ]);
+
+  // ── Helpers for clearing custom filters / distributor ────────────────────────
+  const clearDistributorSelections = useCallback(() => {
+    if (!distributorFieldKey) return;
+    setFilters(prev => {
+      const next = { ...prev };
+      delete next[distributorFieldKey];
+      return next;
+    });
+    setOptionsMap(prev => {
+      const u = { ...prev };
+      delete u[distributorFieldKey];
+      return u;
+    });
+  }, [distributorFieldKey]);
 
   // ── Hierarchy handlers (matching original) ─────────────────────────────────
 
@@ -204,14 +242,47 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
     if (currentValues.length === 0) return;
 
     salesApplyJustClicked.current = true;
+    setIsHierarchySyncing(true);
 
-    // Add to drill-down path
+    // Build the full drill-down path up to current level
     const newPathItems: DrillDownPathItem[] = currentValues.map(v => ({ level: currentLevel, value: v }));
     const newPath = [...salesDrillDownPath.filter(p => p.level !== currentLevel), ...newPathItems];
     setSalesDrillDownPath(newPath);
 
-    // Move to next level
     const currentIdx = hierarchyOrder.indexOf(currentLevel);
+    const supplierLevel = hierarchyOrder[hierarchyOrder.length - 1] || 'supplier';
+    const isSupplierLevelChange = currentLevel === supplierLevel;
+
+    // Clear child level options/cache
+    if (currentIdx !== -1) {
+      setOptionsMap(prev => {
+        const u = { ...prev };
+        for (let i = currentIdx + 1; i < hierarchyOrder.length; i++) delete u[hierarchyOrder[i]];
+        if (isSupplierLevelChange) customFilters.forEach(cf => delete u[cf.alias]);
+        return u;
+      });
+      setSalesOptionsCache(prev => {
+        const u = { ...prev };
+        for (let i = currentIdx + 1; i < hierarchyOrder.length; i++) delete u[hierarchyOrder[i]];
+        return u;
+      });
+      setFilters(prev => {
+        const next = { ...prev };
+        delete next[levelKey];
+        delete next[currentLevel];
+        for (let i = currentIdx + 1; i < hierarchyOrder.length; i++) delete next[hierarchyOrder[i]];
+        if (isSupplierLevelChange) {
+          customFilters.forEach(cf => delete next[cf.alias]);
+          Object.keys(selectedReport.mergedFilters ?? {}).forEach(mf => {
+            delete next[mf]; delete next[`${mf}_dynamic`];
+          });
+        }
+        return next;
+      });
+      if (isSupplierLevelChange) setCustomFilterSelectionOrder([]);
+    }
+
+    // Move to next level
     const nextLevel = currentIdx >= 0 && currentIdx < hierarchyOrder.length - 2
       ? hierarchyOrder[currentIdx + 1]
       : null;
@@ -221,8 +292,12 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
       loadSalesValues(nextLevel);
     }
 
+    // Clear distributor selections on apply
+    if (distributorSource === 'sales') clearDistributorSelections();
+
     setIsHierarchySyncing(false);
-  }, [salesConfig, filters, salesDrillDownPath, loadSalesValues]);
+    loadSalesLevels();
+  }, [salesConfig, filters, salesDrillDownPath, loadSalesValues, loadSalesLevels, customFilters, selectedReport, distributorSource, clearDistributorSelections]);
 
   // Revert uncommitted sales filter changes on dropdown close (matching original)
   const handleSalesDropdownClose = useCallback(() => {
@@ -278,16 +353,28 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
       const next = { ...prev };
       delete next[levelKey];
       hierarchyOrder.forEach(level => delete next[level]);
+      // Also clear custom + merged filters
+      customFilters.forEach(cf => delete next[cf.alias]);
+      Object.keys(selectedReport.mergedFilters ?? {}).forEach(mf => {
+        delete next[mf]; delete next[`${mf}_dynamic`];
+      });
       return next;
     });
     setSalesDrillDownPath([]);
     setOptionsMap(prev => {
       const u = { ...prev };
       hierarchyOrder.forEach(level => delete u[level]);
+      customFilters.forEach(cf => delete u[cf.alias]);
+      Object.keys(selectedReport.mergedFilters ?? {}).forEach(mf => {
+        delete u[mf];
+        (selectedReport.mergedFilters?.[mf] || []).forEach(s => delete u[s.alias]);
+      });
       return u;
     });
     setSalesOptionsCache({});
-  }, [salesConfig]);
+    setCustomFilterSelectionOrder([]);
+    if (distributorSource === 'sales') clearDistributorSelections();
+  }, [salesConfig, customFilters, selectedReport, distributorSource, clearDistributorSelections]);
 
   const handleGeoLevelChange = useCallback((level: string | null) => {
     if (!geoConfig) return;
@@ -322,14 +409,46 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
     if (currentValues.length === 0) return;
 
     geoApplyJustClicked.current = true;
+    setIsHierarchySyncing(true);
 
     // Add to drill-down path
     const newPathItems: DrillDownPathItem[] = currentValues.map(v => ({ level: currentLevel, value: v }));
     const newPath = [...geoDrillDownPath.filter(p => p.level !== currentLevel), ...newPathItems];
     setGeoDrillDownPath(newPath);
 
-    // Move to next level
     const currentIdx = geoHierarchyOrder.indexOf(currentLevel);
+    const isLastLevel = currentIdx === geoHierarchyOrder.length - 1;
+
+    // Clear child level options/cache
+    if (currentIdx !== -1) {
+      setOptionsMap(prev => {
+        const u = { ...prev };
+        for (let i = currentIdx + 1; i < geoHierarchyOrder.length; i++) delete u[geoHierarchyOrder[i]];
+        if (isLastLevel) customFilters.forEach(cf => delete u[cf.alias]);
+        return u;
+      });
+      setGeoOptionsCache(prev => {
+        const u = { ...prev };
+        for (let i = currentIdx + 1; i < geoHierarchyOrder.length; i++) delete u[geoHierarchyOrder[i]];
+        return u;
+      });
+      setFilters(prev => {
+        const next = { ...prev };
+        delete next[levelKey];
+        delete next[currentLevel];
+        for (let i = currentIdx + 1; i < geoHierarchyOrder.length; i++) delete next[geoHierarchyOrder[i]];
+        if (isLastLevel) {
+          customFilters.forEach(cf => delete next[cf.alias]);
+          Object.keys(selectedReport.mergedFilters ?? {}).forEach(mf => {
+            delete next[mf]; delete next[`${mf}_dynamic`];
+          });
+        }
+        return next;
+      });
+      if (isLastLevel) setCustomFilterSelectionOrder([]);
+    }
+
+    // Move to next level
     const nextLevel = currentIdx >= 0 && currentIdx < geoHierarchyOrder.length - 1
       ? geoHierarchyOrder[currentIdx + 1]
       : null;
@@ -339,8 +458,12 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
       loadGeographicalValues(nextLevel);
     }
 
+    // Clear distributor selections on apply
+    if (distributorSource === 'geographical') clearDistributorSelections();
+
     setIsHierarchySyncing(false);
-  }, [geoConfig, filters, geoDrillDownPath, geoHierarchyOrder, loadGeographicalValues]);
+    loadGeographicalLevels();
+  }, [geoConfig, filters, geoDrillDownPath, geoHierarchyOrder, loadGeographicalValues, loadGeographicalLevels, customFilters, selectedReport, distributorSource, clearDistributorSelections]);
 
   // Revert uncommitted geo filter changes on dropdown close (matching original)
   const handleGeoDropdownClose = useCallback(() => {
@@ -394,21 +517,138 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
       const next = { ...prev };
       delete next[levelKey];
       geoHierarchyOrder.forEach(level => delete next[level]);
+      // Also clear custom + merged filters
+      customFilters.forEach(cf => delete next[cf.alias]);
+      Object.keys(selectedReport.mergedFilters ?? {}).forEach(mf => {
+        delete next[mf]; delete next[`${mf}_dynamic`];
+      });
       return next;
     });
     setGeoDrillDownPath([]);
     setOptionsMap(prev => {
       const u = { ...prev };
       geoHierarchyOrder.forEach(level => delete u[level]);
+      customFilters.forEach(cf => delete u[cf.alias]);
+      Object.keys(selectedReport.mergedFilters ?? {}).forEach(mf => {
+        delete u[mf];
+        (selectedReport.mergedFilters?.[mf] || []).forEach(s => delete u[s.alias]);
+      });
       return u;
     });
     setGeoOptionsCache({});
-  }, [geoConfig, geoHierarchyOrder]);
+    setCustomFilterSelectionOrder([]);
+    if (distributorSource === 'geographical') clearDistributorSelections();
+  }, [geoConfig, geoHierarchyOrder, customFilters, selectedReport, distributorSource, clearDistributorSelections]);
 
-  // ── Multi-filter change handler ────────────────────────────────────────────
+  // ── Multi-filter change handler (with cascade logic matching original) ──────
   const handleMultiFilterChange = useCallback((key: string, values: string[]) => {
-    setFilters(prev => ({ ...prev, [key]: values }));
-  }, []);
+    const hierarchyOrder = salesConfig?.hierarchyOrder || [];
+    const supplierLevel = hierarchyOrder.length > 0 ? hierarchyOrder[hierarchyOrder.length - 1] : 'supplier';
+
+    const isDistributorChange = key === distributorFieldKey || key === supplierLevel
+      || key === 'distributor_type' || key === 'distributor_division';
+    const isCustomFilter = customFilters.some(cf => cf.alias === key);
+    const hadSelections = filters[key]?.length > 0 && filters[key][0] !== '';
+    const hasSelections = values.length > 0 && values[0] !== '';
+
+    // Should clear distributor when type/division is emptied
+    const shouldClearDistributor =
+      (key === 'distributor_type' || key === 'distributor_division') &&
+      values.length === 0 && distConfig?.enabled;
+
+    // ── Custom filter selection order tracking ──────────────────────────────
+    let updatedSelectionOrder = [...customFilterSelectionOrder];
+    if (isCustomFilter) {
+      if (!hasSelections && hadSelections) {
+        updatedSelectionOrder = updatedSelectionOrder.filter(k => k !== key);
+      } else if (hasSelections && !hadSelections) {
+        if (!updatedSelectionOrder.includes(key)) updatedSelectionOrder.push(key);
+      } else if (hasSelections && hadSelections) {
+        if (!updatedSelectionOrder.includes(key)) updatedSelectionOrder.push(key);
+      }
+    }
+
+    // ── Determine which downstream custom filters to clear ──────────────────
+    const filtersToClear: string[] = [];
+    if (isCustomFilter) {
+      const currentIndex = customFilterSelectionOrder.indexOf(key);
+      if (currentIndex !== -1) {
+        filtersToClear.push(...customFilterSelectionOrder.slice(currentIndex + 1));
+      }
+    }
+
+    setCustomFilterSelectionOrder(updatedSelectionOrder);
+
+    // ── Update filters ──────────────────────────────────────────────────────
+    setFilters(prev => {
+      const next = { ...prev, [key]: values };
+
+      // Clear distributor when type/division emptied
+      if (shouldClearDistributor && distributorFieldKey) {
+        delete next[distributorFieldKey];
+      }
+
+      // Distributor-level change → clear all custom + merged filters
+      if (isDistributorChange) {
+        customFilters.forEach(cf => delete next[cf.alias]);
+        Object.keys(selectedReport.mergedFilters ?? {}).forEach(mf => {
+          delete next[mf]; delete next[`${mf}_dynamic`];
+        });
+      }
+
+      // Custom filter cascade: clear downstream
+      if (filtersToClear.length > 0) {
+        filtersToClear.forEach(k => delete next[k]);
+      }
+
+      return next;
+    });
+
+    // ── Clear options for affected keys ──────────────────────────────────────
+    if (isDistributorChange) {
+      setOptionsMap(prev => {
+        const u = { ...prev };
+        customFilters.forEach(cf => delete u[cf.alias]);
+        Object.keys(selectedReport.mergedFilters ?? {}).forEach(mf => {
+          delete u[mf];
+          (selectedReport.mergedFilters?.[mf] || []).forEach(s => delete u[s.alias]);
+        });
+        return u;
+      });
+      setCustomFilterSelectionOrder([]);
+    }
+
+    if (shouldClearDistributor && distributorFieldKey) {
+      setOptionsMap(prev => { const u = { ...prev }; delete u[distributorFieldKey]; return u; });
+    }
+
+    if (filtersToClear.length > 0) {
+      setOptionsMap(prev => {
+        const u = { ...prev };
+        filtersToClear.forEach(k => delete u[k]);
+        return u;
+      });
+    }
+
+    // If a custom filter changed, invalidate other unselected custom filter options
+    if (isCustomFilter) {
+      const nextFilters = { ...filters, [key]: values };
+      const filtersToInvalidate = customFilters
+        .map(cf => cf.alias)
+        .filter(alias => alias !== key)
+        .filter(alias => {
+          const vals = nextFilters[alias];
+          return !vals || vals.length === 0 || vals[0] === '';
+        });
+      if (filtersToInvalidate.length > 0) {
+        setOptionsMap(prev => {
+          const u = { ...prev };
+          filtersToInvalidate.forEach(alias => delete u[alias]);
+          return u;
+        });
+      }
+    }
+  }, [filters, customFilters, customFilterSelectionOrder, salesConfig, distConfig, distributorFieldKey, selectedReport]);
 
   // ── Distributor source toggle ──────────────────────────────────────────────
   function handleDistributorSourceChange(source: DistributorSource) {
@@ -673,9 +913,59 @@ export function MdmReportsNewFilter({ reportConfig, onBack }: MdmReportsNewFilte
               <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
             </svg>
           </button>
-          <div className="sc-report-title">
-            <h1>{reportConfig.name}</h1>
-            <span className="sc-title-chevron">▾</span>
+          <div className="sc-report-title-wrap" ref={reportDropdownRef}>
+            <div className="sc-report-title" onClick={() => { if (reportCards?.length) { setReportDropdownOpen(v => !v); setReportSearch(''); } }}>
+              <h1>{reportConfig.name}</h1>
+              <span className={`sc-title-chevron${reportDropdownOpen ? ' open' : ''}`}>
+                {reportDropdownOpen ? '▴' : '▾'}
+              </span>
+            </div>
+            {reportDropdownOpen && reportCards && onSelectReport && (() => {
+              const searchFiltered = reportSearch.trim()
+                ? reportCards.filter(c => c.name.toLowerCase().includes(reportSearch.toLowerCase()))
+                : reportCards;
+              const groups = searchFiltered.reduce<Record<string, newReportConfig[]>>((acc, card) => {
+                const type = card.type || 'Reports';
+                if (!acc[type]) acc[type] = [];
+                acc[type].push(card);
+                return acc;
+              }, {});
+              return (
+                <div className="sc-report-switcher">
+                  <div className="sc-report-switcher-header">
+                    <span className="sc-report-switcher-label">Reports – {reportConfig.name}</span>
+                  </div>
+                  <div className="sc-report-switcher-list">
+                    {Object.entries(groups).map(([groupName, reports]) => {
+                      const isExpanded = expandedGroups[groupName] !== false;
+                      return (
+                        <div key={groupName} className="sc-report-switcher-group">
+                          <div className="sc-report-switcher-group-header" onClick={() => setExpandedGroups(prev => ({ ...prev, [groupName]: !isExpanded }))}>
+                            <span className="sc-report-switcher-group-name">{groupName}</span>
+                            <span className={`sc-report-switcher-group-chevron${isExpanded ? ' open' : ''}`}>
+                              {isExpanded ? '▴' : '▾'}
+                            </span>
+                          </div>
+                          {isExpanded && reports.map(r => (
+                            <div
+                              key={r.id}
+                              className={`sc-report-switcher-item${r.id === reportConfig.id ? ' active' : ''}`}
+                              onClick={() => { onSelectReport(r); setReportDropdownOpen(false); setReportSearch(''); }}
+                            >
+                              <span className="sc-report-switcher-dash">–</span>
+                              <span>{r.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })}
+                    {Object.keys(groups).length === 0 && (
+                      <div className="sc-report-switcher-empty">No reports found</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
         <div className="sc-report-header-right">

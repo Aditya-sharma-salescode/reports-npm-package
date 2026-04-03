@@ -248,10 +248,41 @@ export function MdmReportsPreview({
     </svg>
   );
 
-  // Not showing preview — show empty/no-preview state
+  const showCustomFilters = Boolean(
+    (reportConfig.shouldShowCustomFilters ?? true) && customFilters.length > 0
+  );
+  // Not showing preview — show custom filters + empty/no-preview state
   if (!showPreview) {
     return (
       <div className="sc-preview-container">
+        {showCustomFilters && (
+          <div className="sc-preview-custom-filters">
+            {customFiltersLoading ? (
+              <div className="sc-preview-custom-filters-loading">
+                <div className="sc-preview-spinner" style={{ width: 20, height: 20 }} />
+                <span style={{ fontSize: 13, color: '#666' }}>Loading filters...</span>
+              </div>
+            ) : (
+              <div className="sc-preview-custom-filters-row">
+                {customFilters.map(cf => (
+                  <CompactCheckboxDropdown
+                    key={cf.alias}
+                    label={cf.display}
+                    options={optionsMap[cf.alias] || []}
+                    selected={filters[cf.alias] || []}
+                    onChange={values => onFilterChange?.(cf.alias, values)}
+                    onOpen={() => onFilterOpen?.(cf.alias)}
+                    loading={loadingMap[cf.alias] || false}
+                    placeholder={cf.display}
+                    width={152}
+                    dropdownWidth={250}
+                    selectAllLabel="Select all"
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         <div className="sc-preview-empty-state-full">
           <div className="sc-preview-empty-icon">{fileIcon}</div>
           <h5 className="sc-preview-empty-title">
@@ -261,10 +292,6 @@ export function MdmReportsPreview({
       </div>
     );
   }
-
-  const showCustomFilters = Boolean(
-    (reportConfig.shouldShowCustomFilters ?? true) && customFilters.length > 0
-  );
 
   return (
     <div className="sc-preview-container">

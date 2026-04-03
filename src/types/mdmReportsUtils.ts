@@ -5,6 +5,7 @@ export interface newReportConfig {
   filterReportName?: string;
   id: string;
   name: string;
+  type?: string;
   getAPI: string;
   reportName: string;
   description: string;
@@ -38,6 +39,8 @@ export interface newReportConfig {
   showAdditionalFilters?: boolean;
   sendMetadata?: boolean;
   metadataFields?: string[];
+  disableValidation?: boolean;
+  fullAllow?: boolean;
 }
 
 // ─── Filter & column configuration ────────────────────────────────────────────

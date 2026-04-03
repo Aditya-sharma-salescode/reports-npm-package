@@ -26,5 +26,6 @@ export {
 } from './types/mdmReportsUtils';
 
 // ─── Config helpers (env detection, URL resolvers) ──────────────────────────────
-export { getEnv, getDatastreamBaseUrl, getHostBaseUrl, getReportBaseUrl } from './config/urls';
+export { getEnv, getDatastreamBaseUrl, setDatastreamBaseUrl, getHostBaseUrl, getReportBaseUrl } from './config/urls';
+export { fetchReportConfigs } from './services/configService';
 export { getAccessToken, getTenantId, getAuthContext } from './config/auth';

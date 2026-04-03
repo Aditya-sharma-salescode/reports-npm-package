@@ -1,5 +1,5 @@
 import { datastreamGet, datastreamPost } from './networkService';
-import type { FilterOption, ColumnOption } from './types';
+import type { FilterOption, ColumnOption, LiveReportDownloadRequest } from './types';
 
 // ─── Sales Hierarchy ───────────────────────────────────────────────────────────
 
@@ -171,12 +171,14 @@ export async function fetchFilterValues(
 
 export async function fetchAvailableFilters(reportName: string): Promise<FilterOption[]> {
   const response = await datastreamGet('/report-defs/fields', { report: reportName });
-  return response.data?.filters ?? [];
+  // API returns filters at response.data.fields.filters.map (object keyed by field1, field2, …)
+  const filtersObj = response.data?.fields?.filters?.map;
+  return filtersObj ? Object.values(filtersObj) : [];
 }
 
 export async function fetchColumnDefinitions(reportName: string): Promise<ColumnOption[]> {
   const response = await datastreamGet('/report-defs/fields', { report: reportName });
-  return response.data?.columns ?? [];
+  return response.data?.fields?.columns ?? [];
 }
 
 // ─── Downloads ─────────────────────────────────────────────────────────────────
@@ -206,6 +208,7 @@ export async function downloadLiveReport(params: {
     userFilters?: { userId: string; direct: boolean }[];
   };
   format: string;
+  fullAllow?: boolean;
 }): Promise<Blob> {
   const response = await datastreamPost('/live/download?attachment=true', params, 'blob');
   return response.data as Blob;

@@ -2,7 +2,7 @@
 const DATASTREAM_URLS: Record<string, string> = {
   prod: 'https://datastream.salescode.ai',
   demo: 'https://datastream-demo.salescode.ai',
-  uat: 'https://datastream-uat.salescode.ai',
+  uat: 'https://datastream-saleshub-qa.salescodeai.com',
 };
 
 // Host API — task-based downloads (PDF/GSTR/Custom), distributor meta
@@ -19,6 +19,8 @@ const REPORT_URLS: Record<string, string> = {
   uat: 'https://uat.salescode.ai',
 };
 
+const MARKETPLACE_URL = 'https://salescode-marketplace.salescode.ai';
+
 /**
  * Derives environment from accountId stored in localStorage.
  * Contains "uat" → uat | contains "demo" → demo | else → prod
@@ -30,8 +32,19 @@ export function getEnv(): string {
   return 'prod';
 }
 
+let _datastreamBaseUrlOverride: string | null = null;
+
+/** Set a custom datastream base URL (e.g. from report config's getAPI field) */
+export function setDatastreamBaseUrl(url: string | null): void {
+  _datastreamBaseUrlOverride = url?.replace(/\/+$/, '') || null;
+}
+
 export function getDatastreamBaseUrl(): string {
-  return DATASTREAM_URLS[getEnv()] ?? DATASTREAM_URLS.prod;
+  return _datastreamBaseUrlOverride || DATASTREAM_URLS[getEnv()] || DATASTREAM_URLS.prod;
+}
+
+export function getMarketplaceBaseUrl(): string {
+  return MARKETPLACE_URL;
 }
 
 export function getHostBaseUrl(): string {

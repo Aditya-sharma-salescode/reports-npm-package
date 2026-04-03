@@ -94,7 +94,8 @@ async function collectDistributorCodes(params: DownloadParams): Promise<string[]
   if (!primaryFilter) {
     const directCodes = filters['distributor_code'] ?? [];
     if (directCodes.length > 0) return directCodes;
-    if (selectedReport.isDistributorView && loginId) return [loginId];
+    // Skip loginId fallback when disableValidation is true — filters map will only carry custom filter values
+    if (selectedReport.isDistributorView && loginId && selectedReport.disableValidation !== true) return [loginId];
     return [];
   }
 
@@ -200,6 +201,16 @@ export async function downloadReport(params: DownloadParams): Promise<void> {
   const distributorCodes = await collectDistributorCodes(params);
   const filtersMap = buildFiltersMap(params, distributorCodes);
 
+  // When isDistributorView + disableValidation, suppress filtersMap unless custom filters have values
+  const hasCustomFilterValues = params.customFilters.some(
+    alias => (params.filters[alias]?.length ?? 0) > 0
+  );
+  const suppressFilters =
+    selectedReport.isDistributorView === true &&
+    selectedReport.disableValidation === true &&
+    !hasCustomFilterValues;
+  const effectiveFiltersMap = suppressFilters ? undefined : filtersMap;
+
   // Build distributor filter for hierarchy-based filtering (when no direct distributor_code)
   const useHierarchyDistributorFilter =
     (params.primaryFilter === 'sales' || params.primaryFilter === 'geographical') &&
@@ -234,11 +245,9 @@ export async function downloadReport(params: DownloadParams): Promise<void> {
           : undefined,
       period: dateRangeType === 'period' ? period : undefined,
       year: dateRangeType === 'period' ? year : undefined,
-      filters: {
-        map: filtersMap,
-        ...(params.pf ? { pf: params.pf } : {}),
-      },
+      ...(effectiveFiltersMap !== undefined ? { filters: { map: effectiveFiltersMap, ...(params.pf ? { pf: params.pf } : {}) } } : {}),
       ...(distributorFilter ? { distributorFilter } : {}),
+      ...(selectedReport.fullAllow === true ? { fullAllow: true } : {}),
       format,
     });
     triggerBrowserDownload(blob, selectedReport.reportName, format);
@@ -254,7 +263,7 @@ export async function downloadReport(params: DownloadParams): Promise<void> {
         loggedInUserName: loginId,
         fromDate: startDate,
         toDate: endDate,
-        filters: { map: filtersMap },
+        ...(effectiveFiltersMap !== undefined ? { filters: { map: effectiveFiltersMap } } : {}),
       },
       lob,
     };
@@ -304,7 +313,7 @@ export async function downloadReport(params: DownloadParams): Promise<void> {
       attributes: {
         name: selectedReport.reportName,
         format,
-        filters: { map: filtersMap },
+        ...(effectiveFiltersMap !== undefined ? { filters: { map: effectiveFiltersMap } } : {}),
         fromDate: startDate,
         toDate: endDate,
         ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
@@ -324,10 +333,7 @@ export async function downloadReport(params: DownloadParams): Promise<void> {
   // ── Snapshot report (default) ─────────────────────────────────────────────────
   const blob = await downloadSnapshotReport({
     reportName: selectedReport.reportName,
-    filters: {
-      map: filtersMap,
-      ...(params.pf ? { pf: params.pf } : {}),
-    },
+    ...(effectiveFiltersMap !== undefined ? { filters: { map: effectiveFiltersMap, ...(params.pf ? { pf: params.pf } : {}) } } : {}),
     dateRange: { startDate, endDate },
     format,
     ...(distributorFilter ? { distributorFilter } : {}),
