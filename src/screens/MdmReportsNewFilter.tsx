@@ -151,6 +151,13 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
     loadCustom();
   }, [reportConfig]);
 
+  // Reset date filters when switching reports
+  useEffect(() => {
+    setFromDate(dayjs());
+    setToDate(dayjs());
+    setDateFilterKey(prev => prev + 1);
+  }, [reportConfig]);
+
   // Close report dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
