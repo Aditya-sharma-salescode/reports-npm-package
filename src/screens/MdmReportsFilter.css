@@ -4,7 +4,7 @@
   flex-direction: column;
   width: 100%;
   height: 100vh;
-  background-color: #f5f5f5;
+  background-color: var(--sc-page-bg);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   overflow: hidden;
   padding: 8px;
@@ -38,7 +38,7 @@
   border: none;
   background: none;
   cursor: pointer;
-  color: #666;
+  color: var(--sc-text-muted);
   font-size: 18px;
   border-radius: 6px;
   flex-shrink: 0;
@@ -61,7 +61,7 @@
 .sc-report-title h1 {
   font-size: 15px;
   font-weight: 500;
-  color: #1a1a1a;
+  color: var(--sc-text-primary);
   margin: 0;
   letter-spacing: -0.1px;
 }
@@ -72,10 +72,10 @@
   justify-content: center;
   width: 17px;
   height: 17px;
-  border: 1px solid #888;
+  border: 1px solid var(--sc-text-muted);
   border-radius: 50%;
-  background: #F2F2F2;
-  color: #888;
+  background: var(--sc-disabled-bg);
+  color: var(--sc-text-muted);
   font-size: 10px;
   flex-shrink: 0;
   transition: background 0.15s;
@@ -93,7 +93,7 @@
   left: 0;
   min-width: 320px;
   max-height: 400px;
-  background: #fff;
+  background: var(--sc-dropdown-bg);
   border-radius: 12px;
   box-shadow: 0 4px 24px rgba(0,0,0,0.12);
   z-index: 100;
@@ -103,11 +103,11 @@
 }
 .sc-report-switcher-header {
   padding: 12px 16px 8px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--sc-border-light);
 }
 .sc-report-switcher-label {
   font-size: 13px;
-  color: #6b7280;
+  color: var(--sc-text-muted);
 }
 .sc-report-switcher-list {
   overflow-y: auto;
@@ -151,19 +151,19 @@
   margin: 0 8px;
 }
 .sc-report-switcher-item:hover {
-  background: #f0fdf9;
+  background: var(--sc-accent-bg);
 }
 .sc-report-switcher-item.active {
-  background: #e6faf5;
+  background: var(--sc-accent-bg);
   font-weight: 500;
 }
 .sc-report-switcher-dash {
-  color: #9ca3af;
+  color: var(--sc-text-placeholder);
 }
 .sc-report-switcher-empty {
   padding: 16px;
   text-align: center;
-  color: #9ca3af;
+  color: var(--sc-text-placeholder);
   font-size: 13px;
 }
 
@@ -182,7 +182,7 @@
 
 .sc-date-range-label {
   font-size: 14px;
-  color: #888;
+  color: var(--sc-text-muted);
   font-weight: 500;
 }
 .sc-date-range-asterisk {
@@ -219,10 +219,10 @@
 /* Preview button — outlined teal (matches original MUI Button) */
 .sc-btn-preview {
   padding: 2px 8px;
-  border: 1.5px solid #00A392;
+  border: 1.5px solid var(--sc-accent);
   border-radius: 8px;
-  background: #fff;
-  color: #00A392;
+  background: var(--sc-surface);
+  color: var(--sc-accent);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -230,10 +230,10 @@
   white-space: nowrap;
   transition: background 0.15s;
 }
-.sc-btn-preview:hover { background: rgba(0,163,146,0.04); }
+.sc-btn-preview:hover { background: var(--sc-accent-focus); }
 .sc-btn-preview:disabled {
-  border-color: #ccc;
-  color: #7c7c7c;
+  border-color: var(--sc-border);
+  color: var(--sc-text-muted);
   cursor: not-allowed;
   opacity: 0.5;
 }
@@ -251,7 +251,7 @@
   padding: 6px 12px;
   border: none;
   border-radius: 8px;
-  background: #00A392;
+  background: var(--sc-accent);
   color: #fff;
   font-size: 14px;
   font-weight: 600;
@@ -261,7 +261,7 @@
   box-shadow: none;
   transition: background 0.15s;
 }
-.sc-btn-download:hover:not(:disabled) { background: #009180; }
+.sc-btn-download:hover:not(:disabled) { background: var(--sc-accent-hover); }
 .sc-btn-download:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .sc-download-spinner {
@@ -281,7 +281,7 @@
   top: calc(100% + 4px);
   right: 0;
   z-index: 1500;
-  background: #fff;
+  background: var(--sc-dropdown-bg);
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0,0,0,0.12);
   min-width: 140px;
@@ -294,12 +294,12 @@
   gap: 8px;
   padding: 12px 20px;
   font-size: 14px;
-  color: #4a4a4a;
+  color: var(--sc-text-secondary);
   font-weight: 500;
   cursor: pointer;
   transition: background 0.15s;
 }
-.sc-download-menu-item:hover { background: #f0fdf9; }
+.sc-download-menu-item:hover { background: var(--sc-accent-bg); }
 
 /* ─── Filter chips (matches original MUI Chip) ──────────────────────────────── */
 .sc-filter-chips {
@@ -317,7 +317,7 @@
   align-items: center;
   gap: 4px;
   padding: 0 12px;
-  background: #E6FBF8;
+  background: var(--sc-accent-bg);
   border-radius: 20px;
   font-size: 13px;
   font-weight: 500;
@@ -348,9 +348,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #ffffff;
+  background-color: var(--sc-surface);
   border-radius: 16px;
-  border: 1px solid #e8e8e8;
+  border: 1px solid var(--sc-border);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   min-height: 0;
 }
@@ -359,7 +359,7 @@
 .sc-report-content:has(.sc-preview-container) {
   padding: 0;
   align-items: stretch;
-  background-color: #f8f9fa;
+  background-color: var(--sc-page-bg);
 }
 
 /* ─── Notification toast ─────────────────────────────────────────────────────── */
@@ -375,7 +375,7 @@
   box-shadow: 0 4px 16px rgba(0,0,0,0.15);
   animation: sc-slide-in 0.2s ease;
 }
-.sc-notification.success { background: #00A392; }
+.sc-notification.success { background: var(--sc-accent); }
 .sc-notification.error { background: #dc2626; }
 
 @keyframes sc-slide-in {
@@ -394,19 +394,19 @@
   align-items: center;
   gap: 4px;
   padding: 6px 14px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--sc-border);
   border-radius: 6px;
-  background: #fff;
+  background: var(--sc-surface);
   cursor: pointer;
   font-size: 14px;
   white-space: nowrap;
 }
-.sc-date-range-btn:hover { border-color: #999; }
-.sc-date-range-btn.open { border-color: #00A392; }
+.sc-date-range-btn:hover { border-color: var(--sc-text-placeholder); }
+.sc-date-range-btn.open { border-color: var(--sc-accent); }
 
 .sc-date-range-value {
   font-weight: 500;
-  color: #333;
+  color: var(--sc-text-primary);
 }
 
 /* Popup container */
@@ -416,8 +416,8 @@
   right: 0;
   z-index: 1000;
   display: flex;
-  background: #fff;
-  border: 1px solid #e0e0e0;
+  background: var(--sc-dropdown-bg);
+  border: 1px solid var(--sc-border);
   border-radius: 10px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.12);
   margin-top: 6px;
@@ -428,7 +428,7 @@
 .sc-datepicker-presets {
   display: flex;
   flex-direction: column;
-  border-right: 1px solid #eee;
+  border-right: 1px solid var(--sc-border-light);
   padding: 12px 0;
   min-width: 160px;
 }
@@ -436,17 +436,17 @@
 .sc-preset-item {
   padding: 8px 16px;
   font-size: 14px;
-  color: #555;
+  color: var(--sc-text-secondary);
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.15s;
 }
-.sc-preset-item:hover { background: #f5f5f5; }
+.sc-preset-item:hover { background: var(--sc-surface-hover); }
 .sc-preset-item.active {
-  background: #e8f5f2;
-  color: #00A392;
+  background: var(--sc-accent-bg);
+  color: var(--sc-accent);
   font-weight: 600;
-  border-left: 3px solid #00A392;
+  border-left: 3px solid var(--sc-accent);
 }
 
 /* Calendars side-by-side */
@@ -471,7 +471,7 @@
 .sc-cal-month-title {
   font-size: 14px;
   font-weight: 600;
-  color: #333;
+  color: var(--sc-text-primary);
 }
 
 .sc-cal-nav {
@@ -479,11 +479,11 @@
   background: none;
   font-size: 18px;
   cursor: pointer;
-  color: #666;
+  color: var(--sc-text-muted);
   padding: 2px 6px;
   border-radius: 4px;
 }
-.sc-cal-nav:hover { background: #f0f0f0; }
+.sc-cal-nav:hover { background: var(--sc-surface-hover); }
 .sc-cal-nav:disabled { opacity: 0.3; cursor: default; }
 
 /* 7-column grid */
@@ -497,7 +497,7 @@
 .sc-cal-dow {
   font-size: 12px;
   font-weight: 600;
-  color: #999;
+  color: var(--sc-text-placeholder);
   padding: 4px 0;
 }
 
@@ -511,10 +511,11 @@
   font-size: 13px;
   border-radius: 50%;
   cursor: pointer;
+  color: var(--sc-text-secondary);
   transition: background 0.1s;
 }
 .sc-cal-day.empty { cursor: default; }
-.sc-cal-day:not(.empty):hover { background: #e8f5f2; }
+.sc-cal-day:not(.empty):hover { background: var(--sc-accent-bg); }
 .sc-cal-day.today { font-weight: 700; }
 
 .sc-cal-day.selected-start,
@@ -525,7 +526,7 @@
 }
 
 .sc-cal-day.in-range {
-  background: #e0f2f1;
+  background: var(--sc-accent-bg);
   border-radius: 0;
 }
 

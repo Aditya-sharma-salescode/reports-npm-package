@@ -1,0 +1,52 @@
+/* ─── Reports UI theme variables ─────────────────────────────────────────────
+   Light-mode defaults live on :root.
+   Dark-mode overrides activate when the host app adds `.dark` to <html>.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --sc-page-bg: #f8fafc;
+  --sc-surface: #ffffff;
+  --sc-surface-hover: #f8fafc;
+  --sc-border: #e5e7eb;
+  --sc-border-light: #f1f5f9;
+  --sc-text-primary: #1e293b;
+  --sc-text-secondary: #374151;
+  --sc-text-muted: #6b7280;
+  --sc-text-placeholder: #94a3b8;
+  --sc-icon-muted: #d1d5db;
+  --sc-input-bg: #ffffff;
+  --sc-input-border: #e2e8f0;
+  --sc-table-header-bg: #f3f9fb;
+  --sc-table-alt-bg: #fafafa;
+  --sc-table-hover-bg: #f0f8ff;
+  --sc-disabled-bg: #f3f4f6;
+  --sc-dropdown-bg: #ffffff;
+  --sc-accent: #00a392;
+  --sc-accent-hover: #009180;
+  --sc-accent-bg: #e7f9f7;
+  --sc-accent-focus: rgba(0, 163, 146, 0.08);
+}
+
+.dark {
+  --sc-page-bg: #080c10;
+  --sc-surface: #0f1419;
+  --sc-surface-hover: rgba(255, 255, 255, 0.04);
+  --sc-border: #1f2937;
+  --sc-border-light: #1f2937;
+  --sc-text-primary: #f1f5f9;
+  --sc-text-secondary: #d1d5db;
+  --sc-text-muted: #9ca3af;
+  --sc-text-placeholder: #4b5563;
+  --sc-icon-muted: #4b5563;
+  --sc-input-bg: #1a1f29;
+  --sc-input-border: #374151;
+  --sc-table-header-bg: #0d1117;
+  --sc-table-alt-bg: rgba(255, 255, 255, 0.03);
+  --sc-table-hover-bg: rgba(255, 255, 255, 0.06);
+  --sc-disabled-bg: #1a1f29;
+  --sc-dropdown-bg: #1a1f29;
+  --sc-accent: #00e5cc;
+  --sc-accent-hover: #4bf7e3;
+  --sc-accent-bg: rgba(0, 229, 204, 0.12);
+  --sc-accent-focus: rgba(0, 229, 204, 0.1);
+}

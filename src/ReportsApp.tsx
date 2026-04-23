@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import './theme.css';
 import { ReportTiles } from './screens/ReportTiles';
 import { MdmReportsNewFilter } from './screens/MdmReportsNewFilter';
 import { fetchReportConfigs } from './services/configService';
