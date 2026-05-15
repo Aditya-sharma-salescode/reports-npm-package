@@ -2,8 +2,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid var(--sc-border);
-  background: var(--sc-surface);
+  border: 1px solid #E5E7EB;
+  background: #FFFFFF;
   border-radius: 8px;
   padding: 8px 14px;
   max-width: 166px;
@@ -14,7 +14,7 @@
 }
 
 .hierarchy-dropdown-trigger:hover:not(.is-disabled) {
-  border-color: var(--sc-text-placeholder);
+  border-color: #D1D5DB;
 }
 
 .hierarchy-dropdown-trigger.is-open {
@@ -24,16 +24,16 @@
 
 .hierarchy-dropdown-trigger.is-disabled {
   cursor: not-allowed;
-  background: var(--sc-disabled-bg);
-  border-color: var(--sc-border);
-  color: var(--sc-text-placeholder);
+  background: #F3F4F6;
+  border-color: #E5E7EB;
+  color: #9CA3AF;
   opacity: 0.7;
 }
 
 .hierarchy-dropdown-label {
   font-size: 13px;
   font-weight: 500;
-  color: var(--sc-text-muted);
+  color: #6B7280;
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -45,10 +45,10 @@
 
 .hierarchy-dropdown-paper {
   border-radius: 16px;
-  border: 1px solid var(--sc-border);
+  border: 1px solid #E5E7EB;
   box-shadow: 0px 10px 25px rgba(0, 0, 0, 0.08);
   overflow: hidden;
-  background: var(--sc-dropdown-bg);
+  background: #fff;
 }
 
 .hierarchy-dropdown-content {
@@ -71,7 +71,7 @@
 .hierarchy-dropdown-spinner {
   width: 24px;
   height: 24px;
-  border: 3px solid var(--sc-border);
+  border: 3px solid #e2e8f0;
   border-top-color: #3B82F6;
   border-radius: 50%;
   animation: hier-spin 0.7s linear infinite;
@@ -82,20 +82,19 @@
 /* ─── Hierarchy filter content (shared by Sales + Geo) ──────────────────────── */
 .sc-hierarchy-popup-search {
   padding: 10px 14px;
-  border-bottom: 1px solid var(--sc-border-light);
+  border-bottom: 1px solid #f1f5f9;
 }
 .sc-hierarchy-popup-search input {
   width: 100%;
   padding: 7px 12px;
-  border: 1px solid var(--sc-input-border);
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
   font-size: 13px;
   outline: none;
-  color: var(--sc-text-secondary);
-  background: var(--sc-input-bg);
+  color: #374151;
   box-sizing: border-box;
 }
-.sc-hierarchy-popup-search input:focus { border-color: var(--sc-accent); }
+.sc-hierarchy-popup-search input:focus { border-color: #00A392; }
 
 .sc-hierarchy-popup-body {
   display: flex;
@@ -105,7 +104,7 @@
 
 .sc-hierarchy-levels-col {
   width: 170px;
-  border-right: 1px solid var(--sc-border-light);
+  border-right: 1px solid #f1f5f9;
   overflow-y: auto;
   flex-shrink: 0;
   padding: 6px 0;
@@ -115,14 +114,14 @@
   padding: 10px 16px;
   font-size: 13px;
   cursor: pointer;
-  color: var(--sc-text-placeholder);
+  color: #94a3b8;
   transition: color 0.1s, background 0.1s;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.sc-hierarchy-level-item:hover { color: var(--sc-text-secondary); background: var(--sc-surface-hover); }
-.sc-hierarchy-level-item.active { color: var(--sc-text-primary); font-weight: 700; background: var(--sc-accent-bg); }
+.sc-hierarchy-level-item:hover { color: #374151; background: #f8fafc; }
+.sc-hierarchy-level-item.active { color: #1e293b; font-weight: 700; background: #f0fdf9; }
 
 .sc-hierarchy-values-col {
   flex: 1;
@@ -137,12 +136,12 @@
   padding: 8px 16px;
   font-size: 13px;
   cursor: pointer;
-  color: var(--sc-text-secondary);
+  color: #374151;
   transition: background 0.1s;
 }
-.sc-hierarchy-value-item:hover { background: var(--sc-surface-hover); }
+.sc-hierarchy-value-item:hover { background: #f8fafc; }
 .sc-hierarchy-value-item input[type='checkbox'] {
-  accent-color: var(--sc-accent);
+  accent-color: #00A392;
   width: 15px;
   height: 15px;
   flex-shrink: 0;
@@ -152,13 +151,13 @@
 .sc-hierarchy-loading {
   padding: 30px 20px;
   text-align: center;
-  color: var(--sc-text-placeholder);
+  color: #94a3b8;
   font-size: 13px;
 }
 
 .sc-hierarchy-popup-footer {
   padding: 10px 16px;
-  border-top: 1px solid var(--sc-border-light);
+  border-top: 1px solid #f1f5f9;
   display: flex;
   justify-content: flex-end;
   gap: 10px;
@@ -166,24 +165,24 @@
 
 .sc-btn-reset-sm {
   padding: 6px 18px;
-  border: 1.5px solid var(--sc-input-border);
+  border: 1.5px solid #e2e8f0;
   border-radius: 8px;
-  background: var(--sc-surface);
-  color: var(--sc-text-secondary);
+  background: #fff;
+  color: #374151;
   font-size: 13px;
   cursor: pointer;
   font-weight: 500;
 }
-.sc-btn-reset-sm:hover { background: var(--sc-surface-hover); }
+.sc-btn-reset-sm:hover { background: #f8fafc; }
 
 .sc-btn-apply-sm {
   padding: 6px 18px;
   border: none;
   border-radius: 8px;
-  background: var(--sc-accent);
+  background: #00A392;
   color: #fff;
   font-size: 13px;
   cursor: pointer;
   font-weight: 500;
 }
-.sc-btn-apply-sm:hover { background: var(--sc-accent-hover); }
+.sc-btn-apply-sm:hover { background: #009180; }

@@ -5,34 +5,38 @@ const DISTRIBUTOR_HIERARCHY_ENDPOINT =
   '/users/mapped/hierarchy?filter=activeStatus%3Aactive%20and%20designation%5Bin%5D%3A%5Bsupplier%5D&size=10000';
 
 export async function fetchDistributorMeta(): Promise<DistributorMeta> {
-  const response = await hostGet(DISTRIBUTOR_HIERARCHY_ENDPOINT);
-  const features: DistributorFeature[] = response.data?.features ?? [];
+  // Temporarily disabled: host API call to uat.salescode.ai
+  // Returning empty meta so dependent UI renders without distributor filters.
+  return { features: [], divisions: [], types: [] };
 
-  // Extract unique divisions from prodauthcode (comma-separated)
-  const divisionsSet = new Set<string>();
-  for (const f of features) {
-    if (f.prodauthcode) {
-      f.prodauthcode.split(',').forEach((code: string) => {
-        const trimmed = code.trim();
-        if (trimmed) divisionsSet.add(trimmed);
-      });
-    }
-  }
-
-  // Extract unique types from extendedAttributes.distType
-  const typesSet = new Set<string>();
-  for (const f of features) {
-    const distType = f.extendedAttributes?.distType;
-    if (distType && typeof distType === 'string') {
-      typesSet.add(distType);
-    }
-  }
-
-  return {
-    features,
-    divisions: Array.from(divisionsSet).sort(),
-    types: Array.from(typesSet).sort(),
-  };
+  // const response = await hostGet(DISTRIBUTOR_HIERARCHY_ENDPOINT);
+  // const features: DistributorFeature[] = response.data?.features ?? [];
+  //
+  // // Extract unique divisions from prodauthcode (comma-separated)
+  // const divisionsSet = new Set<string>();
+  // for (const f of features) {
+  //   if (f.prodauthcode) {
+  //     f.prodauthcode.split(',').forEach((code: string) => {
+  //       const trimmed = code.trim();
+  //       if (trimmed) divisionsSet.add(trimmed);
+  //     });
+  //   }
+  // }
+  //
+  // // Extract unique types from extendedAttributes.distType
+  // const typesSet = new Set<string>();
+  // for (const f of features) {
+  //   const distType = f.extendedAttributes?.distType;
+  //   if (distType && typeof distType === 'string') {
+  //     typesSet.add(distType);
+  //   }
+  // }
+  //
+  // return {
+  //   features,
+  //   divisions: Array.from(divisionsSet).sort(),
+  //   types: Array.from(typesSet).sort(),
+  // };
 }
 
 export function filterDistributorsBySelections(

@@ -28,4 +28,4 @@ export {
 // ─── Config helpers (env detection, URL resolvers) ──────────────────────────────
 export { getEnv, getDatastreamBaseUrl, setDatastreamBaseUrl, getHostBaseUrl, getReportBaseUrl } from './config/urls';
 export { fetchReportConfigs } from './services/configService';
-export { getAccessToken, getTenantId, getAuthContext } from './config/auth';
+export { getAccessToken, getTenantId, getAuthContext, syncAuthFromCookies } from './config/auth';

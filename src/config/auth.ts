@@ -1,3 +1,28 @@
+/** Read a cookie value by name */
+function getCookie(name: string): string {
+  const match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+  return match ? decodeURIComponent(match[1]) : '';
+}
+
+/**
+ * Sync accountId & authToken from shared cookies into localStorage.
+ * The host portal (platform.salescodeai.com) sets these cookies with
+ * domain=.salescodeai.com so they are available on all subdomains.
+ *
+ * Call this once at app startup, before any API calls are made.
+ */
+export function syncAuthFromCookies(): void {
+  const accountId = getCookie('ACCOUNT_ID');
+  const authToken = getCookie('SALESHUB_TOKEN');
+
+  if (accountId) {
+    localStorage.setItem('accountId', accountId);
+  }
+  if (authToken) {
+    localStorage.setItem('authToken', authToken);
+  }
+}
+
 export function getAccessToken(): string {
   return localStorage.getItem('authToken') || '';
 }

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import './theme.css';
 import { ReportTiles } from './screens/ReportTiles';
 import { MdmReportsNewFilter } from './screens/MdmReportsNewFilter';
 import { fetchReportConfigs } from './services/configService';
@@ -15,8 +14,6 @@ interface ReportsAppProps {
    * using the accountId (lob) from localStorage.
    */
   reportCards?: newReportConfig[];
-  /** Hide the "Reports" title/count/search header bar. Defaults to true. */
-  showHeader?: boolean;
 }
 
 /**
@@ -31,7 +28,7 @@ interface ReportsAppProps {
  *   localStorage.accountId   — Tenant ID (used for env detection + marketplace lob)
  *   localStorage.authContext  — JSON: { user: { loginId, email } }
  */
-export function ReportsApp({ reportCards: reportCardsProp, showHeader = true }: ReportsAppProps) {
+export function ReportsApp({ reportCards: reportCardsProp }: ReportsAppProps) {
   const [screen, setScreen] = useState<Screen>('tiles');
   const [selectedReport, setSelectedReport] = useState<newReportConfig | null>(null);
   const [fetchedCards, setFetchedCards] = useState<newReportConfig[] | null>(null);
@@ -85,7 +82,7 @@ export function ReportsApp({ reportCards: reportCardsProp, showHeader = true }: 
         </div>
       )}
       {!loading && !error && screen === 'tiles' && (
-        <ReportTiles reportCards={reportCards} onSelect={handleSelectReport} showHeader={showHeader} />
+        <ReportTiles reportCards={reportCards} onSelect={handleSelectReport} />
       )}
       {screen === 'filter' && selectedReport && (
         <MdmReportsNewFilter reportConfig={selectedReport} onBack={handleBack} reportCards={reportCards} onSelectReport={handleSelectReport} />

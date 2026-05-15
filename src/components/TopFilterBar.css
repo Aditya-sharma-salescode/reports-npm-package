@@ -2,8 +2,8 @@
 .sc-topbar-wrapper {
   width: fit-content;
   max-width: 100%;
-  background-color: var(--sc-disabled-bg);
-  border: 1px solid var(--sc-border);
+  background-color: #F3F4F6;
+  border: 1px solid #E5E7EB;
   border-radius: 8px;
   padding: 4px;
   box-sizing: border-box;
@@ -31,7 +31,7 @@
 }
 
 .sc-topbar-radio {
-  accent-color: var(--sc-accent);
+  accent-color: #00A392;
   width: 16px;
   height: 16px;
   cursor: pointer;
@@ -43,7 +43,7 @@
 .sc-topbar-divider {
   width: 0;
   height: 35px;
-  border-right: 1.5px dotted var(--sc-text-muted);
+  border-right: 1.5px dotted #7C7C7C;
   margin: 0;
   flex-shrink: 0;
 }
@@ -53,10 +53,10 @@
   align-items: center;
   gap: 5px;
   padding: 2px 8px;
-  border: 1px solid var(--sc-text-muted);
+  border: 1px solid #7C7C7C;
   border-radius: 8px;
   background: transparent;
-  color: var(--sc-text-muted);
+  color: #7C7C7C;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;

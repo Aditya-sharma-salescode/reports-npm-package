@@ -1,0 +1,67 @@
+workflows:
+  promos-ui:
+    name: Promos UI Deployment
+
+    environment:
+      node: 21
+      npm: 10
+      groups:
+        - aws_credentials
+        - build_variables
+
+    scripts:
+      - name: Install Dependencies
+        script: |
+          npm i
+
+      - name: Build Web App
+        script: |
+          npm run build:app
+
+      - name: Upload Build to S3
+        script: |
+          BUCKET=""
+
+          case "$ENVIRONMENT" in
+            "UAT")
+              BUCKET="reportsuiuat"
+              ;;
+            "DEMO")
+              BUCKET="reportsuidemo"
+              ;;
+            "PROD")
+              BUCKET="reportsui"
+              ;;
+            *)
+              echo "Unknown environment: $ENVIRONMENT"
+              exit 1
+          esac
+
+          aws s3 sync dist-app/ s3://${BUCKET}/
+
+      - name: Invalidate CloudFront Cache
+        script: |
+          DISTRIBUTION_ID=""
+
+          case "$ENVIRONMENT" in
+            "UAT")
+              DISTRIBUTION_ID="$UAT_DISTRIBUTION_ID"
+              ;;
+            "DEMO")
+              DISTRIBUTION_ID="$DEMO_DISTRIBUTION_ID"
+              ;;
+            "PROD")
+              DISTRIBUTION_ID="$PROD_DISTRIBUTION_ID"
+              ;;
+            *)
+              echo "Unknown environment: $ENVIRONMENT"
+              exit 1
+          esac
+
+          echo "Invalidating CloudFront distribution: $DISTRIBUTION_ID"
+          
+          aws cloudfront create-invalidation \
+            --distribution-id ${DISTRIBUTION_ID} \
+            --paths "/*"
+          
+          echo "CloudFront cache invalidation initiated"
