@@ -7,6 +7,9 @@ import {
 } from '../config/auth';
 import { getDatastreamBaseUrl, getHostBaseUrl } from '../config/urls';
 
+// Send cookies on every cross-origin request (portal auth uses HttpOnly cookies).
+axios.defaults.withCredentials = true;
+
 type ExtraRequestConfig = Pick<AxiosRequestConfig, 'responseType' | 'validateStatus'>;
 
 /** Datastream API GET */
@@ -53,6 +56,7 @@ export async function hostPost(path: string, body: unknown) {
 export async function fetchAndDownloadReport(fileUrl: string): Promise<void> {
   const token = getAccessToken();
   const response = await fetch(fileUrl, {
+    credentials: 'include',
     headers: {
       Authorization: `Bearer ${token}`,
       lob: getTenantId(),
