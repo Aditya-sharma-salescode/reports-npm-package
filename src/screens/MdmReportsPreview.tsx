@@ -136,7 +136,7 @@ export function MdmReportsPreview({
         const hasDrillDownPaths = locationFilters.length > 0 || userFilters.length > 0;
         const hasDistributorCodes = apiFilters.distributor_code?.length > 0;
 
-        if (!hasDrillDownPaths && !hasDistributorCodes) {
+        if (!reportConfig.disableValidation && !hasDrillDownPaths && !hasDistributorCodes) {
           if (requestId === lastRequestIdRef.current) {
             setRows([]);
             setHasMore(false);
