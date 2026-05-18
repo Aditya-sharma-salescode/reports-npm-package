@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { type AxiosRequestConfig } from 'axios';
 import {
   getDatastreamHeaders,
   getHostHeaders,
@@ -7,22 +7,30 @@ import {
 } from '../config/auth';
 import { getDatastreamBaseUrl, getHostBaseUrl } from '../config/urls';
 
+type ExtraRequestConfig = Pick<AxiosRequestConfig, 'responseType' | 'validateStatus'>;
+
 /** Datastream API GET */
-export async function datastreamGet(path: string, params?: Record<string, unknown>) {
+export async function datastreamGet(
+  path: string,
+  params?: Record<string, unknown>,
+  extra?: ExtraRequestConfig
+) {
   const url = `${getDatastreamBaseUrl()}${path}`;
-  return axios.get(url, { headers: getDatastreamHeaders(), params });
+  return axios.get(url, { headers: getDatastreamHeaders(), params, ...extra });
 }
 
 /** Datastream API POST */
 export async function datastreamPost(
   path: string,
   body: unknown,
-  responseType?: 'blob'
+  responseType?: 'blob',
+  extra?: ExtraRequestConfig
 ) {
   const url = `${getDatastreamBaseUrl()}${path}`;
   return axios.post(url, body, {
     headers: getDatastreamHeaders(),
     ...(responseType ? { responseType } : {}),
+    ...extra,
   });
 }
 
