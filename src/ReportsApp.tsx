@@ -73,7 +73,7 @@ export function ReportsApp({ reportCards: reportCardsProp }: ReportsAppProps) {
     }}>
       {loading && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#6b7280' }}>
-          Loading reports...
+          Loading your reports...
         </div>
       )}
       {error && !loading && (
