@@ -1,6 +1,6 @@
 workflows:
   promos-ui:
-    name: Promos UI Deployment
+    name: Reports UI Deployment
 
     environment:
       node: 21
