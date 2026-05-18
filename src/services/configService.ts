@@ -23,8 +23,11 @@ export async function fetchReportConfigs(): Promise<newReportConfig[]> {
   if (!lob) return [];
 
   const url = `${getMarketplaceBaseUrl()}/configuration/fetch`;
+  // Marketplace responds with Access-Control-Allow-Origin: *, which is incompatible
+  // with the global withCredentials=true default. Disable credentials on this call.
   const response = await axios.get<MarketplaceResponse>(url, {
     headers: { lob },
+    withCredentials: false,
   });
 
   const features = response.data?.features ?? [];
