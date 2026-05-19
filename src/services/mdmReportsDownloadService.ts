@@ -1,14 +1,8 @@
 import dayjs, { type Dayjs } from 'dayjs';
-import {
-  submitLiveReportAsync,
-  submitSnapshotReportAsync,
-  pollAsyncReport,
-  fetchLocationUsers,
-  fetchChildrenUsers,
-} from './reportsDataService';
+import { downloadLiveReport, downloadSnapshotReport, fetchLocationUsers, fetchChildrenUsers } from './reportsDataService';
 import { hostGet, hostPost, fetchAndDownloadReport } from './networkService';
 import { getAuthContext, getTenantId } from '../config/auth';
-import type { DownloadParams, DrillDownPathItem } from './types';
+import type { DownloadParams, DrillDownPathItem, DistributorFeature } from './types';
 
 // ─── Date conversion helpers ───────────────────────────────────────────────────
 
@@ -243,7 +237,7 @@ export async function downloadReport(params: DownloadParams): Promise<void> {
 
   // ── Live report ──────────────────────────────────────────────────────────────
   if (selectedReport.isLiveReport) {
-    const livePayload = {
+    const blob = await downloadLiveReport({
       configName: selectedReport.reportName,
       dateRange:
         dateRangeType === 'daterange'
@@ -255,9 +249,7 @@ export async function downloadReport(params: DownloadParams): Promise<void> {
       ...(distributorFilter ? { distributorFilter } : {}),
       ...(selectedReport.fullAllow === true ? { fullAllow: true } : {}),
       format,
-    };
-    const runId = await submitLiveReportAsync(livePayload);
-    const blob = await pollAsyncReport(runId);
+    });
     triggerBrowserDownload(blob, selectedReport.reportName, format);
     return;
   }
@@ -339,14 +331,12 @@ export async function downloadReport(params: DownloadParams): Promise<void> {
   }
 
   // ── Snapshot report (default) ─────────────────────────────────────────────────
-  const snapshotPayload = {
+  const blob = await downloadSnapshotReport({
     reportName: selectedReport.reportName,
     ...(effectiveFiltersMap !== undefined ? { filters: { map: effectiveFiltersMap, ...(params.pf ? { pf: params.pf } : {}) } } : {}),
     dateRange: { startDate, endDate },
     format,
     ...(distributorFilter ? { distributorFilter } : {}),
-  };
-  const runId = await submitSnapshotReportAsync(snapshotPayload);
-  const blob = await pollAsyncReport(runId);
+  });
   triggerBrowserDownload(blob, selectedReport.reportName, format);
 }
