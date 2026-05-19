@@ -154,6 +154,8 @@ export function CompactCheckboxDropdown({
     ? { width: typeof width === 'number' ? `${width}px` : width }
     : undefined;
 
+  const tooltipText = typeof label === 'string' ? label : undefined;
+
   return (
     <>
       <div
@@ -161,6 +163,7 @@ export function CompactCheckboxDropdown({
         className={`compact-dropdown-trigger${disabled ? ' disabled' : ''}${hasSelections ? ' has-selections' : ''}${open ? ' open' : ''}`}
         onClick={() => open ? handleClose() : handleOpen()}
         style={triggerStyle}
+        title={tooltipText}
       >
         {hasSelections && (
           <span className="compact-dropdown-floating-label">{label}</span>
