@@ -181,35 +181,116 @@ export async function fetchColumnDefinitions(reportName: string): Promise<Column
   return response.data?.fields?.columns ?? [];
 }
 
-// ─── Downloads ─────────────────────────────────────────────────────────────────
+// ─── Downloads (async submit + poll) ──────────────────────────────────────────
 
-export async function downloadSnapshotReport(params: {
-  reportName: string;
-  filters?: { map?: Record<string, string[]>; pf?: string };
-  dateRange?: { startDate: string; endDate: string };
-  format?: string;
-  distributorFilter?: {
-    locationFilters?: { level: string; value: string }[];
-    userFilters?: { userId: string; direct: boolean }[];
-  };
-}): Promise<Blob> {
-  const response = await datastreamPost('/rpt-generic/download', params, 'blob');
-  return response.data as Blob;
+export interface AsyncSubmitResponse {
+  runId: string;
+  config?: string;
+  reports?: string[];
+  startedAt?: string;
 }
 
-export async function downloadLiveReport(params: {
+interface DistributorFilterPayload {
+  locationFilters?: { level: string; value: string }[];
+  userFilters?: { userId: string; direct: boolean }[];
+}
+
+export interface LiveReportPayload {
   configName: string;
   dateRange?: { startDate: string; endDate: string };
   period?: string;
   year?: string;
   filters?: { map?: Record<string, string[]>; pf?: string };
-  distributorFilter?: {
-    locationFilters?: { level: string; value: string }[];
-    userFilters?: { userId: string; direct: boolean }[];
-  };
+  distributorFilter?: DistributorFilterPayload;
   format: string;
   fullAllow?: boolean;
-}): Promise<Blob> {
-  const response = await datastreamPost('/live/download?attachment=true', params, 'blob');
-  return response.data as Blob;
+}
+
+export interface SnapshotReportPayload {
+  reportName: string;
+  filters?: { map?: Record<string, string[]>; pf?: string };
+  dateRange?: { startDate: string; endDate: string };
+  format?: string;
+  distributorFilter?: DistributorFilterPayload;
+}
+
+async function submitAsync(path: string, payload: unknown): Promise<string> {
+  try {
+    const response = await datastreamPost(path, payload);
+    const runId = response.data?.runId;
+    if (!runId) throw new Error('Async submit did not return a runId');
+    return runId;
+  } catch (err: unknown) {
+    const axiosErr = err as { response?: { status?: number; data?: { error?: string } } };
+    if (axiosErr.response?.status === 429) {
+      throw new Error(
+        axiosErr.response.data?.error ??
+          'Server busy, too many concurrent reports. Try again later.'
+      );
+    }
+    throw err;
+  }
+}
+
+export async function submitLiveReportAsync(params: LiveReportPayload): Promise<string> {
+  return submitAsync('/live/download?attachment=false', params);
+}
+
+export async function submitSnapshotReportAsync(
+  params: SnapshotReportPayload
+): Promise<string> {
+  return submitAsync('/rpt-generic/download?attachment=false', params);
+}
+
+interface PollAsyncReportOptions {
+  intervalMs?: number;
+  timeoutMs?: number;
+}
+
+export async function pollAsyncReport(
+  runId: string,
+  options: PollAsyncReportOptions = {}
+): Promise<Blob> {
+  const { intervalMs = 2000, timeoutMs = 10 * 60 * 1000 } = options;
+  const startedAt = Date.now();
+
+  while (true) {
+    if (Date.now() - startedAt > timeoutMs) {
+      throw new Error('Report generation timed out');
+    }
+
+    const response = await datastreamGet(
+      '/reports/download',
+      { runId },
+      { responseType: 'blob', validateStatus: () => true }
+    );
+
+    if (response.status === 200) {
+      return response.data as Blob;
+    }
+
+    // Non-200 statuses carry a JSON body but we requested blob — decode it.
+    const blob = response.data as Blob | undefined;
+    let body: { status?: string; message?: string } = {};
+    if (blob && typeof blob.text === 'function') {
+      try {
+        const text = await blob.text();
+        body = text ? JSON.parse(text) : {};
+      } catch {
+        body = {};
+      }
+    }
+
+    if (response.status === 202) {
+      await new Promise(r => setTimeout(r, intervalMs));
+      continue;
+    }
+    if (response.status === 422) {
+      throw new Error(body.message ?? 'Report generation failed');
+    }
+    if (response.status === 404) {
+      throw new Error(body.message ?? 'Unknown or expired runId');
+    }
+    throw new Error(body.message ?? `Unexpected status ${response.status}`);
+  }
 }
