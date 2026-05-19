@@ -894,14 +894,6 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
     });
   }
 
-  // Custom filter chips
-  customFilters.forEach(cf => {
-    const v = filters[cf.alias];
-    if (v?.length > 0) {
-      chips.push({ key: `custom_${cf.alias}`, label: cf.display, value: v[0], count: v.length > 1 ? v.length - 1 : undefined, onRemove: () => handleMultiFilterChange(cf.alias, []) });
-    }
-  });
-
   const noPreviewText =
     reportConfig.isLiveReport ? 'Live reports cannot be previewed. Kindly download the report to continue.'
     : reportConfig.isPDFReport ? 'PDF reports cannot be previewed. Kindly download the report to continue.'
