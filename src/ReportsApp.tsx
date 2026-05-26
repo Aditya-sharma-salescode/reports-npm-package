@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ReportTiles } from './screens/ReportTiles';
 import { MdmReportsNewFilter } from './screens/MdmReportsNewFilter';
 import { fetchReportConfigs } from './services/configService';
-import { setDatastreamBaseUrl } from './config/urls';
+import { setDatastreamBaseUrl, setHostBaseUrl, setReportBaseUrl } from './config/urls';
 import type { newReportConfig } from './types/mdmReportsUtils';
 
 type Screen = 'tiles' | 'filter';
@@ -14,6 +14,12 @@ interface ReportsAppProps {
    * using the accountId (lob) from localStorage.
    */
   reportCards?: newReportConfig[];
+  /** Override datastream base URL (filters, report data, downloads). Falls back to env-derived URL. */
+  datastreamBaseUrl?: string;
+  /** Override host base URL (task-based downloads: PDF/GSTR/Custom). Falls back to env-derived URL. */
+  hostBaseUrl?: string;
+  /** Override report service base URL (file downloads by key). Falls back to env-derived URL. */
+  reportBaseUrl?: string;
 }
 
 /**
@@ -28,7 +34,7 @@ interface ReportsAppProps {
  *   localStorage.accountId   — Tenant ID (used for env detection + marketplace lob)
  *   localStorage.authContext  — JSON: { user: { loginId, email } }
  */
-export function ReportsApp({ reportCards: reportCardsProp }: ReportsAppProps) {
+export function ReportsApp({ reportCards: reportCardsProp, datastreamBaseUrl, hostBaseUrl, reportBaseUrl }: ReportsAppProps) {
   const [screen, setScreen] = useState<Screen>('tiles');
   const [selectedReport, setSelectedReport] = useState<newReportConfig | null>(null);
   const [fetchedCards, setFetchedCards] = useState<newReportConfig[] | null>(null);
@@ -36,6 +42,19 @@ export function ReportsApp({ reportCards: reportCardsProp }: ReportsAppProps) {
   const [error, setError] = useState<string | null>(null);
 
   const reportCards = reportCardsProp ?? fetchedCards ?? [];
+
+  // Apply base URL overrides from props; clear on unmount
+  useEffect(() => {
+    if (datastreamBaseUrl) setDatastreamBaseUrl(datastreamBaseUrl);
+    if (hostBaseUrl) setHostBaseUrl(hostBaseUrl);
+    if (reportBaseUrl) setReportBaseUrl(reportBaseUrl);
+
+    return () => {
+      if (datastreamBaseUrl) setDatastreamBaseUrl(null);
+      if (hostBaseUrl) setHostBaseUrl(null);
+      if (reportBaseUrl) setReportBaseUrl(null);
+    };
+  }, [datastreamBaseUrl, hostBaseUrl, reportBaseUrl]);
 
   // Fetch configs from marketplace API when not passed as prop
   useEffect(() => {

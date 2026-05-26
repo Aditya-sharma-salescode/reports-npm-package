@@ -33,10 +33,20 @@ export function getEnv(): string {
 }
 
 let _datastreamBaseUrlOverride: string | null = null;
+let _hostBaseUrlOverride: string | null = null;
+let _reportBaseUrlOverride: string | null = null;
 
 /** Set a custom datastream base URL (e.g. from report config's getAPI field) */
 export function setDatastreamBaseUrl(url: string | null): void {
   _datastreamBaseUrlOverride = url?.replace(/\/+$/, '') || null;
+}
+
+export function setHostBaseUrl(url: string | null): void {
+  _hostBaseUrlOverride = url?.replace(/\/+$/, '') || null;
+}
+
+export function setReportBaseUrl(url: string | null): void {
+  _reportBaseUrlOverride = url?.replace(/\/+$/, '') || null;
 }
 
 export function getDatastreamBaseUrl(): string {
@@ -48,9 +58,9 @@ export function getMarketplaceBaseUrl(): string {
 }
 
 export function getHostBaseUrl(): string {
-  return HOST_URLS[getEnv()] ?? HOST_URLS.prod;
+  return _hostBaseUrlOverride ?? HOST_URLS[getEnv()] ?? HOST_URLS.prod;
 }
 
 export function getReportBaseUrl(): string {
-  return REPORT_URLS[getEnv()] ?? REPORT_URLS.prod;
+  return _reportBaseUrlOverride ?? REPORT_URLS[getEnv()] ?? REPORT_URLS.prod;
 }
