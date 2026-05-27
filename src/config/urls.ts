@@ -36,9 +36,18 @@ let _datastreamBaseUrlOverride: string | null = null;
 let _hostBaseUrlOverride: string | null = null;
 let _reportBaseUrlOverride: string | null = null;
 
+const DATASTREAM_LS_KEY = '_sc_datastreamBaseUrl';
+
 /** Set a custom datastream base URL (e.g. from report config's getAPI field) */
 export function setDatastreamBaseUrl(url: string | null): void {
-  _datastreamBaseUrlOverride = url?.replace(/\/+$/, '') || null;
+  const cleaned = url?.replace(/\/+$/, '') || null;
+  _datastreamBaseUrlOverride = cleaned;
+  if (cleaned) {
+    // Persist so React effect cleanup → re-effect races don't hit the wrong fallback URL.
+    // Intentionally no removeItem on null — the window where override is null should still
+    // resolve to the last-known good URL, not the env-derived default.
+    localStorage.setItem(DATASTREAM_LS_KEY, cleaned);
+  }
 }
 
 export function setHostBaseUrl(url: string | null): void {
@@ -50,7 +59,12 @@ export function setReportBaseUrl(url: string | null): void {
 }
 
 export function getDatastreamBaseUrl(): string {
-  return _datastreamBaseUrlOverride || DATASTREAM_URLS[getEnv()] || DATASTREAM_URLS.prod;
+  return (
+    _datastreamBaseUrlOverride ||
+    localStorage.getItem(DATASTREAM_LS_KEY) ||
+    DATASTREAM_URLS[getEnv()] ||
+    DATASTREAM_URLS.prod
+  );
 }
 
 export function getMarketplaceBaseUrl(): string {

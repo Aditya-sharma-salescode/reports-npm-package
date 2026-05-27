@@ -72,14 +72,13 @@ export function ReportsApp({ reportCards: reportCardsProp, datastreamBaseUrl, ho
   }, [reportCardsProp]);
 
   function handleSelectReport(config: newReportConfig) {
-    // Set datastream base URL from report's getAPI field
-    setDatastreamBaseUrl(config.getAPI || null);
+    setDatastreamBaseUrl(config.getAPI || datastreamBaseUrl || null);
     setSelectedReport(config);
     setScreen('filter');
   }
 
   function handleBack() {
-    setDatastreamBaseUrl(null);
+    setDatastreamBaseUrl(datastreamBaseUrl || null);
     setScreen('tiles');
     setSelectedReport(null);
   }
