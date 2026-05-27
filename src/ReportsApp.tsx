@@ -20,6 +20,8 @@ interface ReportsAppProps {
   hostBaseUrl?: string;
   /** Override report service base URL (file downloads by key). Falls back to env-derived URL. */
   reportBaseUrl?: string;
+  /** Hide the Reports title/count/search header bar. Defaults to true. */
+  showHeader?: boolean;
 }
 
 /**
@@ -34,7 +36,7 @@ interface ReportsAppProps {
  *   localStorage.accountId   — Tenant ID (used for env detection + marketplace lob)
  *   localStorage.authContext  — JSON: { user: { loginId, email } }
  */
-export function ReportsApp({ reportCards: reportCardsProp, datastreamBaseUrl, hostBaseUrl, reportBaseUrl }: ReportsAppProps) {
+export function ReportsApp({ reportCards: reportCardsProp, datastreamBaseUrl, hostBaseUrl, reportBaseUrl, showHeader = true }: ReportsAppProps) {
   const [screen, setScreen] = useState<Screen>('tiles');
   const [selectedReport, setSelectedReport] = useState<newReportConfig | null>(null);
   const [fetchedCards, setFetchedCards] = useState<newReportConfig[] | null>(null);
@@ -101,7 +103,7 @@ export function ReportsApp({ reportCards: reportCardsProp, datastreamBaseUrl, ho
         </div>
       )}
       {!loading && !error && screen === 'tiles' && (
-        <ReportTiles reportCards={reportCards} onSelect={handleSelectReport} />
+        <ReportTiles reportCards={reportCards} onSelect={handleSelectReport} showHeader={showHeader} />
       )}
       {screen === 'filter' && selectedReport && (
         <MdmReportsNewFilter reportConfig={selectedReport} onBack={handleBack} reportCards={reportCards} onSelectReport={handleSelectReport} />
