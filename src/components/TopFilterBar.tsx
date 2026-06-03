@@ -76,27 +76,6 @@ export function TopFilterBar({
   return (
     <div className="sc-topbar-wrapper">
       <div className="sc-topbar-inner">
-        {/* Distributor Type */}
-        {selectedReport?.showDistributorType !== false && (
-          <CompactCheckboxDropdown
-            label="Distributor Type"
-            options={distributorTypeOptions}
-            selected={selectedTypes}
-            onChange={onTypeChange}
-            selectAllLabel="Select all types"
-          />
-        )}
-
-        {/* Distributor Division */}
-        {selectedReport?.showDistributorDivision !== false && (
-          <CompactCheckboxDropdown
-            label="Distributor Division"
-            options={distributorDivisionOptions}
-            selected={selectedDivisions}
-            onChange={onDivisionChange}
-            selectAllLabel="Select all divisions"
-          />
-        )}
 
         {/* Geography */}
         {geoEnabled && (
