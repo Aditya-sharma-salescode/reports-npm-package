@@ -5,9 +5,10 @@ import './ReportTiles.css';
 interface ReportTilesProps {
   reportCards: newReportConfig[];
   onSelect: (config: newReportConfig) => void;
+  showHeader?: boolean;
 }
 
-export function ReportTiles({ reportCards, onSelect }: ReportTilesProps) {
+export function ReportTiles({ reportCards, onSelect, showHeader = true }: ReportTilesProps) {
   const [search, setSearch] = useState('');
 
   const filtered = search.trim()
@@ -28,27 +29,29 @@ export function ReportTiles({ reportCards, onSelect }: ReportTilesProps) {
   return (
     <div className="sc-tiles-page">
       {/* Header bar */}
-      <div className="sc-tiles-header">
-        <div className="sc-tiles-header-left">
-          <h1 className="sc-tiles-title">Reports</h1>
-          <span className="sc-tiles-count">{reportCards.length} reports</span>
-        </div>
-        <div className="sc-tiles-header-right">
-          <div className="sc-tiles-search-wrap">
-            <span className="sc-tiles-search-icon">🔍</span>
-            <input
-              className="sc-tiles-search"
-              type="text"
-              placeholder="Search reports..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
-            {search && (
-              <span className="sc-tiles-search-clear" onClick={() => setSearch('')}>×</span>
-            )}
+      {showHeader && (
+        <div className="sc-tiles-header">
+          <div className="sc-tiles-header-left">
+            <h1 className="sc-tiles-title">Reports</h1>
+            <span className="sc-tiles-count">{reportCards.length} reports</span>
+          </div>
+          <div className="sc-tiles-header-right">
+            <div className="sc-tiles-search-wrap">
+              <span className="sc-tiles-search-icon">🔍</span>
+              <input
+                className="sc-tiles-search"
+                type="text"
+                placeholder="Search reports..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
+              {search && (
+                <span className="sc-tiles-search-clear" onClick={() => setSearch('')}>×</span>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Groups */}
       <div className="sc-tiles-body">

@@ -33,14 +33,38 @@ export function getEnv(): string {
 }
 
 let _datastreamBaseUrlOverride: string | null = null;
+let _hostBaseUrlOverride: string | null = null;
+let _reportBaseUrlOverride: string | null = null;
+
+const DATASTREAM_LS_KEY = '_sc_datastreamBaseUrl';
 
 /** Set a custom datastream base URL (e.g. from report config's getAPI field) */
 export function setDatastreamBaseUrl(url: string | null): void {
-  _datastreamBaseUrlOverride = url?.replace(/\/+$/, '') || null;
+  const cleaned = url?.replace(/\/+$/, '') || null;
+  _datastreamBaseUrlOverride = cleaned;
+  if (cleaned) {
+    // Persist so React effect cleanup → re-effect races don't hit the wrong fallback URL.
+    // Intentionally no removeItem on null — the window where override is null should still
+    // resolve to the last-known good URL, not the env-derived default.
+    localStorage.setItem(DATASTREAM_LS_KEY, cleaned);
+  }
+}
+
+export function setHostBaseUrl(url: string | null): void {
+  _hostBaseUrlOverride = url?.replace(/\/+$/, '') || null;
+}
+
+export function setReportBaseUrl(url: string | null): void {
+  _reportBaseUrlOverride = url?.replace(/\/+$/, '') || null;
 }
 
 export function getDatastreamBaseUrl(): string {
-  return _datastreamBaseUrlOverride || DATASTREAM_URLS[getEnv()] || DATASTREAM_URLS.prod;
+  return (
+    _datastreamBaseUrlOverride ||
+    localStorage.getItem(DATASTREAM_LS_KEY) ||
+    DATASTREAM_URLS[getEnv()] ||
+    DATASTREAM_URLS.prod
+  );
 }
 
 export function getMarketplaceBaseUrl(): string {
@@ -48,9 +72,9 @@ export function getMarketplaceBaseUrl(): string {
 }
 
 export function getHostBaseUrl(): string {
-  return HOST_URLS[getEnv()] ?? HOST_URLS.prod;
+  return _hostBaseUrlOverride ?? HOST_URLS[getEnv()] ?? HOST_URLS.prod;
 }
 
 export function getReportBaseUrl(): string {
-  return REPORT_URLS[getEnv()] ?? REPORT_URLS.prod;
+  return _reportBaseUrlOverride ?? REPORT_URLS[getEnv()] ?? REPORT_URLS.prod;
 }
