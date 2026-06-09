@@ -30,7 +30,7 @@ workflows:
               BUCKET="reportsuidemo"
               ;;
             "PROD")
-              BUCKET="reportsui"
+              BUCKET="reportsuipackage"
               ;;
             *)
               echo "Unknown environment: $ENVIRONMENT"
