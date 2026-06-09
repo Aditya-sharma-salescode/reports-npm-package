@@ -105,6 +105,14 @@ export function NewDateFilter({ fromDate, toDate, onFromChange, onToChange }: Ne
   const [rightMonth, setRightMonth] = useState(toDate.month());
   const wrapperRef = useRef<HTMLDivElement>(null);
 
+  // Disable the left calendar's next arrow only when it would navigate past the
+  // current (real) month — mirrors how MUI's StaticDatePicker handles maxDate/disableFuture.
+  const now = dayjs();
+  const disableLeftNext =
+    leftYear > now.year() || (leftYear === now.year() && leftMonth >= now.month());
+  const disableRightNext =
+    rightYear > now.year() || (rightYear === now.year() && rightMonth >= now.month());
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
@@ -210,7 +218,8 @@ export function NewDateFilter({ fromDate, toDate, onFromChange, onToChange }: Ne
               onDayClick={handleStartDayClick}
               onDayHover={setHoverDate}
               onPrev={prevMonth}
-              disableNext={true}
+              onNext={nextMonth}
+              disableNext={disableLeftNext}
             />
             <Calendar
               year={rightYear}
@@ -222,6 +231,7 @@ export function NewDateFilter({ fromDate, toDate, onFromChange, onToChange }: Ne
               onDayHover={setHoverDate}
               onPrev={prevRightMonth}
               onNext={nextRightMonth}
+              disableNext={disableRightNext}
             />
           </div>
         </div>
