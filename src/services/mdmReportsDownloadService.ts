@@ -201,8 +201,12 @@ export async function downloadReport(params: DownloadParams): Promise<void> {
   const { loginId } = getAuthContext();
   const lob = getTenantId();
 
-  const startDate = convertDayjsStartDateToUtcString(fromDate);
-  const endDate = convertDayjsEndDateToUtcString(toDate);
+  // Only send a date range when the report has the date filter enabled.
+  // When dateRangeFilter is false/absent, no date picker is shown and the
+  // dates default to today — sending that would apply an unintended filter.
+  const includeDateRange = selectedReport.dateRangeFilter === true;
+  const startDate = includeDateRange ? convertDayjsStartDateToUtcString(fromDate) : undefined;
+  const endDate = includeDateRange ? convertDayjsEndDateToUtcString(toDate) : undefined;
 
   const distributorCodes = await collectDistributorCodes(params);
   const filtersMap = buildFiltersMap(params, distributorCodes);
@@ -246,7 +250,7 @@ export async function downloadReport(params: DownloadParams): Promise<void> {
     const livePayload = {
       configName: selectedReport.reportName,
       dateRange:
-        dateRangeType === 'daterange'
+        startDate && endDate && dateRangeType === 'daterange'
           ? { startDate, endDate }
           : undefined,
       period: dateRangeType === 'period' ? period : undefined,
@@ -269,8 +273,7 @@ export async function downloadReport(params: DownloadParams): Promise<void> {
         name: selectedReport.reportName,
         format,
         loggedInUserName: loginId,
-        fromDate: startDate,
-        toDate: endDate,
+        ...(startDate && endDate ? { fromDate: startDate, toDate: endDate } : {}),
         ...(effectiveFiltersMap !== undefined ? { filters: { map: effectiveFiltersMap } } : {}),
       },
       lob,
@@ -289,8 +292,7 @@ export async function downloadReport(params: DownloadParams): Promise<void> {
         name: selectedReport.reportName,
         format,
         loggedInUserName: loginId,
-        fromDate: startDate,
-        toDate: endDate,
+        ...(startDate && endDate ? { fromDate: startDate, toDate: endDate } : {}),
       },
       lob,
     };
@@ -322,8 +324,7 @@ export async function downloadReport(params: DownloadParams): Promise<void> {
         name: selectedReport.reportName,
         format,
         ...(effectiveFiltersMap !== undefined ? { filters: { map: effectiveFiltersMap } } : {}),
-        fromDate: startDate,
-        toDate: endDate,
+        ...(startDate && endDate ? { fromDate: startDate, toDate: endDate } : {}),
         ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
       },
       lob,
@@ -342,7 +343,7 @@ export async function downloadReport(params: DownloadParams): Promise<void> {
   const snapshotPayload = {
     reportName: selectedReport.reportName,
     ...(effectiveFiltersMap !== undefined ? { filters: { map: effectiveFiltersMap, ...(params.pf ? { pf: params.pf } : {}) } } : {}),
-    dateRange: { startDate, endDate },
+    ...(startDate && endDate ? { dateRange: { startDate, endDate } } : {}),
     format,
     ...(distributorFilter ? { distributorFilter } : {}),
   };
