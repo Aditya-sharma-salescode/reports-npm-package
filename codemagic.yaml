@@ -16,6 +16,21 @@ workflows:
 
       - name: Build Web App
         script: |
+          # Suffix appended to the runtime tenant for the config-fetch API only.
+          # Tenant-agnostic: prod config buckets are "<tenant>-prod", staging is "<tenant>".
+          case "$ENVIRONMENT" in
+            "UAT"|"DEMO")
+              export VITE_CONFIG_TENANT_SUFFIX=""
+              ;;
+            "PROD")
+              export VITE_CONFIG_TENANT_SUFFIX="-prod"
+              ;;
+            *)
+              echo "Unknown environment: $ENVIRONMENT"
+              exit 1
+          esac
+
+          echo "Building app for ENVIRONMENT=$ENVIRONMENT (config tenant suffix: '${VITE_CONFIG_TENANT_SUFFIX}')"
           npm run build:app
 
       - name: Upload Build to S3
