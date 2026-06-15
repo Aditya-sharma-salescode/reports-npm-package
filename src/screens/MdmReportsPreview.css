@@ -127,6 +127,9 @@
   border-right: 1px solid #d0d0d0;
   white-space: nowrap;
   letter-spacing: 0.02em;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .sc-preview-th:last-child { border-right: 1px solid #e0e0e0; }
 

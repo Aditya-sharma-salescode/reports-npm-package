@@ -344,7 +344,7 @@ export function MdmReportsPreview({
               <thead>
                 <tr className="sc-preview-thead-row">
                   {displayColumns.map((col) => (
-                    <th key={col.alias} className="sc-preview-th">
+                    <th key={col.alias} className="sc-preview-th" title={col.label}>
                       {col.label}
                     </th>
                   ))}
@@ -356,11 +356,14 @@ export function MdmReportsPreview({
                     key={rowIdx}
                     className={`sc-preview-tr${rowIdx % 2 === 0 ? '' : ' sc-preview-tr-alt'}`}
                   >
-                    {displayColumns.map((col) => (
-                      <td key={col.alias} className="sc-preview-td">
-                        {String(row[col.alias] ?? '')}
-                      </td>
-                    ))}
+                    {displayColumns.map((col) => {
+                      const cellValue = String(row[col.alias] ?? '');
+                      return (
+                        <td key={col.alias} className="sc-preview-td" title={cellValue}>
+                          {cellValue}
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
               </tbody>
