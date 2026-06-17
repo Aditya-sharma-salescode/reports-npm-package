@@ -212,6 +212,7 @@ export interface SnapshotReportPayload {
   dateRange?: { startDate: string; endDate: string };
   format?: string;
   distributorFilter?: DistributorFilterPayload;
+  fullAllow?: boolean;
 }
 
 async function submitAsync(path: string, payload: unknown): Promise<string> {

@@ -340,12 +340,14 @@ export async function downloadReport(params: DownloadParams): Promise<void> {
   }
 
   // ── Snapshot report (default) ─────────────────────────────────────────────────
+  // Non-live (Redshift) downloads request the full dataset via fullAllow.
   const snapshotPayload = {
     reportName: selectedReport.reportName,
     ...(effectiveFiltersMap !== undefined ? { filters: { map: effectiveFiltersMap, ...(params.pf ? { pf: params.pf } : {}) } } : {}),
     ...(startDate && endDate ? { dateRange: { startDate, endDate } } : {}),
     format,
     ...(distributorFilter ? { distributorFilter } : {}),
+    fullAllow: true,
   };
   const runId = await submitSnapshotReportAsync(snapshotPayload);
   const blob = await pollAsyncReport(runId);
