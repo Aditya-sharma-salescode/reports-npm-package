@@ -27,6 +27,23 @@ function convertDayjsEndDateToUtcString(date: Dayjs): string {
   return toUtcDateString(localEnd);
 }
 
+// Snapshot downloads expect the ISO "T...Z" boundary (e.g. 2026-03-23T18:30:00Z)
+// instead of the space-separated "YYYY-MM-DD HH:mm:ss" the other download types use.
+// Same local-day → UTC conversion as above, only the output format differs.
+function toUtcIsoString(date: Date): string {
+  return date.toISOString().replace(/\.\d{3}Z$/, 'Z');
+}
+
+function convertDayjsStartDateToUtcIsoString(date: Dayjs): string {
+  const localStart = new Date(date.year(), date.month(), date.date(), 0, 0, 0);
+  return toUtcIsoString(localStart);
+}
+
+function convertDayjsEndDateToUtcIsoString(date: Dayjs): string {
+  const localEnd = new Date(date.year(), date.month(), date.date(), 23, 59, 59);
+  return toUtcIsoString(localEnd);
+}
+
 // ─── Browser download trigger ──────────────────────────────────────────────────
 
 function triggerBrowserDownload(blob: Blob, reportName: string, format: string) {
@@ -207,6 +224,10 @@ export async function downloadReport(params: DownloadParams): Promise<void> {
   const includeDateRange = selectedReport.dateRangeFilter === true;
   const startDate = includeDateRange ? convertDayjsStartDateToUtcString(fromDate) : undefined;
   const endDate = includeDateRange ? convertDayjsEndDateToUtcString(toDate) : undefined;
+  // Snapshot download uses the ISO "T...Z" boundary format; other types keep the
+  // space-separated strings above.
+  const snapshotStartDate = includeDateRange ? convertDayjsStartDateToUtcIsoString(fromDate) : undefined;
+  const snapshotEndDate = includeDateRange ? convertDayjsEndDateToUtcIsoString(toDate) : undefined;
 
   const distributorCodes = await collectDistributorCodes(params);
   const filtersMap = buildFiltersMap(params, distributorCodes);
@@ -343,7 +364,9 @@ export async function downloadReport(params: DownloadParams): Promise<void> {
   const snapshotPayload = {
     reportName: selectedReport.reportName,
     ...(effectiveFiltersMap !== undefined ? { filters: { map: effectiveFiltersMap, ...(params.pf ? { pf: params.pf } : {}) } } : {}),
-    ...(startDate && endDate ? { dateRange: { startDate, endDate } } : {}),
+    ...(snapshotStartDate && snapshotEndDate
+      ? { dateRange: { startDate: snapshotStartDate, endDate: snapshotEndDate } }
+      : {}),
     format,
     ...(distributorFilter ? { distributorFilter } : {}),
   };
