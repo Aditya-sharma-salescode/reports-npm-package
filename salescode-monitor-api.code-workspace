@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "../../Documents/salescode-monitor-api"
+		},
+		{
+			"path": "../../Documents/salescode-monitor-dashboard"
+		},
+		{
+			"path": "."
+		}
+	],
+	"settings": {}
+}
