@@ -92,15 +92,11 @@ export async function fetchReportData(params: ReportSearchParams) {
   const { report, page, pageSize, contains, since, until, pf, filters, distributorFilter } =
     params;
 
-  // Spread filter values as top-level keys
-  const spreadFilters: Record<string, string | string[]> = {};
+  // Spread filter values as top-level keys, comma-separated rather than arrays
+  const spreadFilters: Record<string, string> = {};
   if (filters) {
     for (const [key, values] of Object.entries(filters)) {
-      if (key === 'distributor_code') {
-        spreadFilters[key] = values.join(',');
-      } else {
-        spreadFilters[key] = values;
-      }
+      spreadFilters[key] = values.join(',');
     }
   }
 
