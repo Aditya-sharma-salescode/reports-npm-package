@@ -1,4 +1,5 @@
 import { datastreamGet, datastreamPost } from './networkService';
+import { applyCustomPayloadCommaSeparated, type CustomPayloadEntry } from '../types/mdmReportsUtils';
 import type { FilterOption, ColumnOption, LiveReportDownloadRequest } from './types';
 
 // ─── Sales Hierarchy ───────────────────────────────────────────────────────────
@@ -127,6 +128,8 @@ export interface FilterValuesParams {
   until?: string;
   additionalFilters?: Record<string, string[]>;
   filters?: Record<string, string[]>;
+  /** Hardcoded values sent comma-separated at top level (e.g. company: "britannia") */
+  sendCustomPayload?: CustomPayloadEntry[];
   distributorFilter?: {
     locationFilters?: { level: string; value: string }[];
     userFilters?: { userId: string; direct: boolean }[];
@@ -136,7 +139,7 @@ export interface FilterValuesParams {
 export async function fetchFilterValues(
   params: FilterValuesParams
 ): Promise<string[]> {
-  const { report, which, contains, since, until, additionalFilters, filters, distributorFilter } =
+  const { report, which, contains, since, until, additionalFilters, filters, sendCustomPayload, distributorFilter } =
     params;
 
   const spreadFilters: Record<string, string | string[]> = {};
@@ -148,6 +151,9 @@ export async function fetchFilterValues(
       spreadFilters[key] = values;
     }
   }
+
+  // Hardcoded config values — comma-separated at top level
+  applyCustomPayloadCommaSeparated(spreadFilters as Record<string, string>, sendCustomPayload);
 
   const payload: Record<string, unknown> = {
     report,

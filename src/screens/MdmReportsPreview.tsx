@@ -4,7 +4,7 @@ import { fetchReportData, fetchColumnDefinitions, type ReportSearchParams } from
 import { isMergedFilterForReport, getMergedFilterSources } from '../services/mdmCustomFiltersService';
 import { buildLocationFilters, buildUserFilters } from '../services/mdmReportsDownloadService';
 import { CompactCheckboxDropdown } from '../components/CompactCheckboxDropdown';
-import type { newReportConfig } from '../types/mdmReportsUtils';
+import { applyCustomPayloadToMap, type newReportConfig } from '../types/mdmReportsUtils';
 import type { FilterOption, DrillDownPathItem, ColumnOption } from '../services/types';
 import './MdmReportsPreview.css';
 
@@ -126,6 +126,10 @@ export function MdmReportsPreview({
             apiFilters[key] = values;
           }
         });
+
+        // Hardcoded values from config — always injected. fetchReportData spreads
+        // these comma-separated at top level (e.g. `company: "britannia"`).
+        applyCustomPayloadToMap(apiFilters, reportConfig.sendCustomPayload);
 
         const locationFilters = buildLocationFilters(geoDrillDownPath);
         const userFilters = buildUserFilters(

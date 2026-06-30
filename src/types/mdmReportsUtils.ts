@@ -41,6 +41,61 @@ export interface newReportConfig {
   metadataFields?: string[];
   disableValidation?: boolean;
   fullAllow?: boolean;
+  /**
+   * Hardcoded filter values injected into every search, preview, filter-values
+   * and download request for this report. Each entry names the API field and
+   * the value(s) to send.
+   *   e.g. [{ field: "company", values: ["britannia"] }]
+   * On search/preview/filter-values these go in as top-level comma-separated
+   * keys (`company: "britannia"`); on download they go into `filters.map`
+   * (`company: ["britannia"]`).
+   */
+  sendCustomPayload?: CustomPayloadEntry[];
+}
+
+export interface CustomPayloadEntry {
+  /** Target API field name, e.g. "company" */
+  field: string;
+  /** Hardcoded value(s) for the field, e.g. ["britannia"] */
+  values: string[];
+}
+
+// ─── Custom payload helpers ────────────────────────────────────────────────────
+
+/**
+ * Apply hardcoded `sendCustomPayload` entries onto a filters map as arrays.
+ * Used by the download path (`filters.map`) and the filter-values path.
+ * Mutates and returns `map`. Entries with empty values are skipped.
+ */
+export function applyCustomPayloadToMap(
+  map: Record<string, string[]>,
+  entries?: CustomPayloadEntry[]
+): Record<string, string[]> {
+  if (!entries) return map;
+  for (const { field, values } of entries) {
+    if (field && values && values.length > 0) {
+      map[field] = values;
+    }
+  }
+  return map;
+}
+
+/**
+ * Apply hardcoded `sendCustomPayload` entries as top-level comma-separated
+ * keys. Used by the search/preview path (`{ company: "britannia" }`).
+ * Mutates and returns `target`. Entries with empty values are skipped.
+ */
+export function applyCustomPayloadCommaSeparated(
+  target: Record<string, string>,
+  entries?: CustomPayloadEntry[]
+): Record<string, string> {
+  if (!entries) return target;
+  for (const { field, values } of entries) {
+    if (field && values && values.length > 0) {
+      target[field] = values.join(',');
+    }
+  }
+  return target;
 }
 
 // ─── Filter & column configuration ────────────────────────────────────────────

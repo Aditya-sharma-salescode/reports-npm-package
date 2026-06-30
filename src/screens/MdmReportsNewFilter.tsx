@@ -766,6 +766,7 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
         report: reportConfig.filterReportName ?? reportConfig.reportName,
         which: key,
         additionalFilters,
+        sendCustomPayload: reportConfig.sendCustomPayload,
         since,
         until,
         distributorFilter: distributorFilterPayload,

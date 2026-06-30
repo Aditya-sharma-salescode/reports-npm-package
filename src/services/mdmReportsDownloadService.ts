@@ -8,6 +8,7 @@ import {
 } from './reportsDataService';
 import { hostGet, hostPost, fetchAndDownloadReport } from './networkService';
 import { getAuthContext, getTenantId } from '../config/auth';
+import { applyCustomPayloadToMap } from '../types/mdmReportsUtils';
 import type { DownloadParams, DrillDownPathItem } from './types';
 
 // ─── Date conversion helpers ───────────────────────────────────────────────────
@@ -208,6 +209,9 @@ function buildFiltersMap(
     }
   }
 
+  // Hardcoded values from config — injected regardless of exclusion rules
+  applyCustomPayloadToMap(map, selectedReport.sendCustomPayload);
+
   return map;
 }
 
@@ -236,10 +240,12 @@ export async function downloadReport(params: DownloadParams): Promise<void> {
   const hasCustomFilterValues = params.customFilters.some(
     alias => (params.filters[alias]?.length ?? 0) > 0
   );
+  const hasCustomPayload = (selectedReport.sendCustomPayload?.length ?? 0) > 0;
   const suppressFilters =
     selectedReport.isDistributorView === true &&
     selectedReport.disableValidation === true &&
-    !hasCustomFilterValues;
+    !hasCustomFilterValues &&
+    !hasCustomPayload;
   const effectiveFiltersMap = suppressFilters ? undefined : filtersMap;
 
   // Build distributor filter for hierarchy-based filtering (when no direct distributor_code)
