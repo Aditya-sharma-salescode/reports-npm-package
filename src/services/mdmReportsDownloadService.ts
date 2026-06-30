@@ -367,16 +367,19 @@ export async function downloadReport(params: DownloadParams): Promise<void> {
   }
 
   // ── Snapshot report (default) ─────────────────────────────────────────────────
-  // Non-live (Redshift) downloads request the full dataset via fullAllow.
+  // When a filters map is sent, it scopes the download — fullAllow is omitted.
+  // Otherwise (no filters) request the full dataset via fullAllow.
+  const hasFiltersMap =
+    effectiveFiltersMap !== undefined && Object.keys(effectiveFiltersMap).length > 0;
   const snapshotPayload = {
     reportName: selectedReport.reportName,
-    ...(effectiveFiltersMap !== undefined ? { filters: { map: effectiveFiltersMap, ...(params.pf ? { pf: params.pf } : {}) } } : {}),
+    ...(hasFiltersMap ? { filters: { map: effectiveFiltersMap, ...(params.pf ? { pf: params.pf } : {}) } } : {}),
     ...(snapshotStartDate && snapshotEndDate
       ? { dateRange: { startDate: snapshotStartDate, endDate: snapshotEndDate } }
       : {}),
     format,
     ...(distributorFilter ? { distributorFilter } : {}),
-    fullAllow: true,
+    ...(hasFiltersMap ? {} : { fullAllow: true }),
   };
   const runId = await submitSnapshotReportAsync(snapshotPayload);
   const blob = await pollAsyncReport(runId);
