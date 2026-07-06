@@ -143,17 +143,32 @@ export async function fetchFilterValues(
     params;
 
   const spreadFilters: Record<string, string | string[]> = {};
-  const allFilters = { ...additionalFilters, ...filters };
-  for (const [key, values] of Object.entries(allFilters)) {
-    if (key === 'distributor_code') {
-      spreadFilters[key] = values.join(',');
-    } else {
-      spreadFilters[key] = values;
+
+  // additionalFilters: distributor_code is comma-separated, everything else stays as-is
+  if (additionalFilters) {
+    for (const [key, values] of Object.entries(additionalFilters)) {
+      if (values && values.length > 0) {
+        spreadFilters[key] = key === 'distributor_code' ? values.join(',') : values;
+      }
+    }
+  }
+
+  // filters (custom-filter dependencies): ALWAYS sent comma-separated, never as arrays
+  if (filters) {
+    for (const [key, values] of Object.entries(filters)) {
+      if (values && values.length > 0) {
+        spreadFilters[key] = values.join(',');
+      }
     }
   }
 
   // Hardcoded config values — comma-separated at top level
   applyCustomPayloadCommaSeparated(spreadFilters as Record<string, string>, sendCustomPayload);
+
+  // Drop distributorFilter when a direct distributor_code selection is present
+  const hasDirectDistributor =
+    (filters?.distributor_code?.length ?? 0) > 0 ||
+    (additionalFilters?.distributor_code?.length ?? 0) > 0;
 
   const payload: Record<string, unknown> = {
     report,
@@ -162,7 +177,7 @@ export async function fetchFilterValues(
     ...(since ? { since } : {}),
     ...(until ? { until } : {}),
     ...spreadFilters,
-    ...(distributorFilter ? { distributorFilter } : {}),
+    ...(distributorFilter && !hasDirectDistributor ? { distributorFilter } : {}),
   };
 
   const response = await datastreamPost('/rpt-generic/filter-values', payload);

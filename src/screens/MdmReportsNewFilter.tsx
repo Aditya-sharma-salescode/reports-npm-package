@@ -60,6 +60,9 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
   const [customFilters, setCustomFilters] = useState<FilterOption[]>([]);
   const [customFiltersLoading, setCustomFiltersLoading] = useState(false);
   const [customFilterSelectionOrder, setCustomFilterSelectionOrder] = useState<string[]>([]);
+  // Controlled server-side search text per filter + debounce timers (interdependency)
+  const [searchTextMap, setSearchTextMap] = useState<Record<string, string>>({});
+  const timeoutRefs = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   // Date
   const [fromDate, setFromDate] = useState<Dayjs>(dayjs());
@@ -603,13 +606,24 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
         });
       }
 
-      // Custom filter cascade: clear downstream
+      // Custom filter cascade: clear downstream selections
       if (filtersToClear.length > 0) {
         filtersToClear.forEach(k => delete next[k]);
       }
 
       return next;
     });
+
+    // Cascade: clear search text for downstream filters and distributor-cleared filters
+    if (isDistributorChange || filtersToClear.length > 0 || shouldClearDistributor) {
+      setSearchTextMap(prev => {
+        const u = { ...prev };
+        if (isDistributorChange) customFilters.forEach(cf => delete u[cf.alias]);
+        if (shouldClearDistributor && distributorFieldKey) delete u[distributorFieldKey];
+        filtersToClear.forEach(k => delete u[k]);
+        return u;
+      });
+    }
 
     // ── Clear options for affected keys ──────────────────────────────────────
     if (isDistributorChange) {
@@ -648,7 +662,21 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
           return !vals || vals.length === 0 || vals[0] === '';
         });
       if (filtersToInvalidate.length > 0) {
+        // Clear their selections + cached options + search so they reload with the
+        // latest dependencies (the changed filter) the next time they're opened.
+        setFilters(prev => {
+          const u = { ...prev };
+          filtersToInvalidate.forEach(alias => {
+            if (u[alias] && u[alias].length > 0) delete u[alias];
+          });
+          return u;
+        });
         setOptionsMap(prev => {
+          const u = { ...prev };
+          filtersToInvalidate.forEach(alias => delete u[alias]);
+          return u;
+        });
+        setSearchTextMap(prev => {
           const u = { ...prev };
           filtersToInvalidate.forEach(alias => delete u[alias]);
           return u;
@@ -739,8 +767,30 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
     }
   }, [selectedReport, geoConfig, salesConfig, distributorSource, geoDrillDownPath, salesDrillDownPath, filters, distributorFeatures]);
 
+  // ── Custom filter interdependency ───────────────────────────────────────────
+  // Build the dependency payload for loading `excludeKey`'s options: every OTHER
+  // custom filter that currently has a selection constrains this filter's values.
+  // This is what makes the custom filters interdependent — selecting filter A
+  // narrows the options returned for filter B. Pass `overrideFilters` to build
+  // from a synchronous snapshot (before setFilters has flushed).
+  const buildCustomFilterDependencies = useCallback(
+    (excludeKey?: string, overrideFilters?: Record<string, string[]>): Record<string, string[]> => {
+      const sourceFilters = overrideFilters || filters;
+      const dependencyFilters: Record<string, string[]> = {};
+      customFilters.forEach(cf => {
+        if (cf.alias === excludeKey) return;
+        const vals = sourceFilters[cf.alias];
+        if (vals && vals.length > 0 && vals[0] !== '') {
+          dependencyFilters[cf.alias] = vals;
+        }
+      });
+      return dependencyFilters;
+    },
+    [filters, customFilters]
+  );
+
   // ── Custom filter options ──────────────────────────────────────────────────
-  const loadFilterOptions = useCallback(async (key: string) => {
+  const loadFilterOptions = useCallback(async (key: string, q?: string, overrideFilters?: Record<string, string[]>) => {
     setLoadingMap(prev => ({ ...prev, [key]: true }));
     try {
       const locationFilters = buildLocationFilters(geoDrillDownPath);
@@ -755,6 +805,9 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
         ? { distributor_code: distributorCodes }
         : undefined;
 
+      // Other selected custom filters constrain the values returned for `key`.
+      const dependencyFilters = buildCustomFilterDependencies(key, overrideFilters);
+
       let since: string | undefined;
       let until: string | undefined;
       if (reportConfig.dateRangeFilter && fromDate && toDate) {
@@ -765,7 +818,9 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
       const values = await fetchFilterValues({
         report: reportConfig.filterReportName ?? reportConfig.reportName,
         which: key,
+        contains: q?.trim() || undefined,
         additionalFilters,
+        filters: Object.keys(dependencyFilters).length > 0 ? dependencyFilters : undefined,
         sendCustomPayload: reportConfig.sendCustomPayload,
         since,
         until,
@@ -778,13 +833,44 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
     } finally {
       setLoadingMap(prev => ({ ...prev, [key]: false }));
     }
-  }, [reportConfig, fromDate, toDate, geoDrillDownPath, salesDrillDownPath, salesConfig, filters, distributorFieldKey]);
+  }, [reportConfig, fromDate, toDate, geoDrillDownPath, salesDrillDownPath, salesConfig, filters, distributorFieldKey, buildCustomFilterDependencies]);
 
   const handleFilterOpen = useCallback((key: string) => {
     if (key === distributorFieldKey) return;
+    // Skip the API call when this filter already has a selection, or its options
+    // are already loaded — no point refetching what the user has already chosen.
+    const hasSelections = filters[key]?.length > 0 && filters[key][0] !== '';
     const hasOpts = optionsMap[key]?.length > 0;
-    if (!hasOpts) loadFilterOptions(key);
-  }, [distributorFieldKey, optionsMap, loadFilterOptions]);
+    if (!hasSelections && !hasOpts) loadFilterOptions(key);
+  }, [distributorFieldKey, filters, optionsMap, loadFilterOptions]);
+
+  // Debounced server-side search for custom filters (controlled search text).
+  const handleFilterInputChange = useCallback((key: string, inputValue: string) => {
+    if (key === distributorFieldKey) return;
+
+    const isSearchCleared = !inputValue || inputValue.trim() === '';
+
+    setSearchTextMap(prev => ({ ...prev, [key]: inputValue }));
+
+    // A cleared search never triggers a fetch. Clearing the box (or the dropdown
+    // auto-clearing on close) has nothing new to load — this is what would
+    // otherwise cause a spurious API call the next time the filter is opened.
+    if (isSearchCleared) {
+      if (timeoutRefs.current[key]) {
+        clearTimeout(timeoutRefs.current[key]);
+        delete timeoutRefs.current[key];
+      }
+      return;
+    }
+
+    if (timeoutRefs.current[key]) {
+      clearTimeout(timeoutRefs.current[key]);
+    }
+    timeoutRefs.current[key] = setTimeout(() => {
+      delete timeoutRefs.current[key];
+      loadFilterOptions(key, inputValue);
+    }, 350);
+  }, [distributorFieldKey, loadFilterOptions]);
 
   // ── Reset ──────────────────────────────────────────────────────────────────
   function handleReset() {
@@ -794,6 +880,8 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
     setSalesOptionsCache({});
     setGeoOptionsCache({});
     setShowPreview(false);
+    setSearchTextMap({});
+    setCustomFilterSelectionOrder([]);
     setFromDate(dayjs()); setToDate(dayjs());
     setDateFilterKey(prev => prev + 1);
     // Re-populate type/division options
@@ -1102,6 +1190,8 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
           loadingMap={loadingMap}
           onFilterChange={handleMultiFilterChange}
           onFilterOpen={handleFilterOpen}
+          searchTextMap={searchTextMap}
+          onFilterInputChange={handleFilterInputChange}
           customFiltersLoading={customFiltersLoading}
         />
       </div>

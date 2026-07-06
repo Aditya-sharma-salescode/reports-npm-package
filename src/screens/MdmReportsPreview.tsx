@@ -26,6 +26,8 @@ interface MdmReportsPreviewProps {
   loadingMap?: Record<string, boolean>;
   onFilterChange?: (key: string, values: string[]) => void;
   onFilterOpen?: (key: string) => void;
+  searchTextMap?: Record<string, string>;
+  onFilterInputChange?: (key: string, value: string) => void;
   customFiltersLoading?: boolean;
 }
 
@@ -44,6 +46,8 @@ export function MdmReportsPreview({
   loadingMap = {},
   onFilterChange,
   onFilterOpen,
+  searchTextMap = {},
+  onFilterInputChange,
   customFiltersLoading = false,
 }: MdmReportsPreviewProps) {
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
@@ -276,6 +280,8 @@ export function MdmReportsPreview({
                     selected={filters[cf.alias] || []}
                     onChange={values => onFilterChange?.(cf.alias, values)}
                     onOpen={() => onFilterOpen?.(cf.alias)}
+                    searchText={searchTextMap[cf.alias] ?? ''}
+                    onSearchChange={value => onFilterInputChange?.(cf.alias, value)}
                     loading={loadingMap[cf.alias] || false}
                     placeholder={cf.display}
                     width={152}
@@ -317,6 +323,8 @@ export function MdmReportsPreview({
                   selected={filters[cf.alias] || []}
                   onChange={values => onFilterChange?.(cf.alias, values)}
                   onOpen={() => onFilterOpen?.(cf.alias)}
+                  searchText={searchTextMap[cf.alias] ?? ''}
+                  onSearchChange={value => onFilterInputChange?.(cf.alias, value)}
                   loading={loadingMap[cf.alias] || false}
                   placeholder={cf.display}
                   width={152}
