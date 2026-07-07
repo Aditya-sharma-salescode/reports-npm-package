@@ -872,6 +872,29 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
     }, 350);
   }, [distributorFieldKey, loadFilterOptions]);
 
+  // Clear ONLY the custom filter selections (used by the reset button rendered
+  // inside the custom filter row when isDistributorView hides the TopFilterBar).
+  const handleCustomFilterReset = useCallback(() => {
+    if (customFilters.length === 0) return;
+    const aliases = customFilters.map(cf => cf.alias);
+    setFilters(prev => {
+      const u = { ...prev };
+      aliases.forEach(alias => delete u[alias]);
+      return u;
+    });
+    setOptionsMap(prev => {
+      const u = { ...prev };
+      aliases.forEach(alias => delete u[alias]);
+      return u;
+    });
+    setSearchTextMap(prev => {
+      const u = { ...prev };
+      aliases.forEach(alias => delete u[alias]);
+      return u;
+    });
+    setCustomFilterSelectionOrder([]);
+  }, [customFilters]);
+
   // ── Reset ──────────────────────────────────────────────────────────────────
   function handleReset() {
     setFilters({});
@@ -1192,6 +1215,8 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
           onFilterOpen={handleFilterOpen}
           searchTextMap={searchTextMap}
           onFilterInputChange={handleFilterInputChange}
+          showCustomFilterReset={isDistributorView}
+          onCustomFilterReset={handleCustomFilterReset}
           customFiltersLoading={customFiltersLoading}
         />
       </div>

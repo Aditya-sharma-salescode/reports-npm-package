@@ -36,6 +36,29 @@
   flex-wrap: wrap;
 }
 
+/* Reset button inside the custom filter row (mirrors TopFilterBar reset) */
+.sc-custom-filter-reset-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border: 1px solid #7C7C7C;
+  border-radius: 8px;
+  background: transparent;
+  color: #7C7C7C;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  height: 33px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.sc-custom-filter-reset-btn:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
 /* ─── Table container ────────────────────────────────────────────────────────── */
 .sc-preview-table-container {
   flex: 1;

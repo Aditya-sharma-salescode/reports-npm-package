@@ -28,6 +28,9 @@ interface MdmReportsPreviewProps {
   onFilterOpen?: (key: string) => void;
   searchTextMap?: Record<string, string>;
   onFilterInputChange?: (key: string, value: string) => void;
+  /** Show a reset button in the custom filter row (used when TopFilterBar is hidden, e.g. isDistributorView) */
+  showCustomFilterReset?: boolean;
+  onCustomFilterReset?: () => void;
   customFiltersLoading?: boolean;
 }
 
@@ -48,6 +51,8 @@ export function MdmReportsPreview({
   onFilterOpen,
   searchTextMap = {},
   onFilterInputChange,
+  showCustomFilterReset = false,
+  onCustomFilterReset,
   customFiltersLoading = false,
 }: MdmReportsPreviewProps) {
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
@@ -259,6 +264,17 @@ export function MdmReportsPreview({
   const showCustomFilters = Boolean(
     (reportConfig.shouldShowCustomFilters ?? true) && customFilters.length > 0
   );
+
+  // Reset button for the custom filter row (styled like the TopFilterBar reset).
+  // Only rendered when requested (e.g. isDistributorView, where TopFilterBar is hidden).
+  const customFilterResetBtn = showCustomFilterReset ? (
+    <button className="sc-custom-filter-reset-btn" onClick={() => onCustomFilterReset?.()} type="button">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+      </svg>
+      Reset
+    </button>
+  ) : null;
   // Not showing preview — show custom filters + empty/no-preview state
   if (!showPreview) {
     return (
@@ -289,6 +305,7 @@ export function MdmReportsPreview({
                     selectAllLabel="Select all"
                   />
                 ))}
+                {customFilterResetBtn}
               </div>
             )}
           </div>
@@ -332,6 +349,7 @@ export function MdmReportsPreview({
                   selectAllLabel="Select all"
                 />
               ))}
+              {customFilterResetBtn}
             </div>
           )}
         </div>
