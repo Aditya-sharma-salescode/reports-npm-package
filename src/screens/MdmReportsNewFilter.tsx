@@ -63,6 +63,11 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
   // Controlled server-side search text per filter + debounce timers (interdependency)
   const [searchTextMap, setSearchTextMap] = useState<Record<string, string>>({});
   const timeoutRefs = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  // The query the options currently in optionsMap were loaded with (per key).
+  // Non-empty means optionsMap[key] is narrowed by a search and must be refreshed
+  // when the search is cleared. This is tracked in a ref because the controlled
+  // searchText state gets reset to '' before the dropdown's close handler runs.
+  const loadedQueryRef = useRef<Record<string, string>>({});
 
   // Date
   const [fromDate, setFromDate] = useState<Dayjs>(dayjs());
@@ -815,7 +820,7 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
         until = new Date(Date.UTC(toDate.year(), toDate.month(), toDate.date(), 18, 29, 59)).toISOString().replace(/\.\d{3}Z$/, 'Z');
       }
 
-      const values = await fetchFilterValues({
+      const requestPayload = {
         report: reportConfig.filterReportName ?? reportConfig.reportName,
         which: key,
         contains: q?.trim() || undefined,
@@ -825,8 +830,12 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
         since,
         until,
         distributorFilter: distributorFilterPayload,
-      });
+      };
+      const values = await fetchFilterValues(requestPayload);
       const opts = values.filter(v => v && String(v).trim() !== '').map(v => ({ label: String(v), value: String(v) }));
+      // Remember which query these options were loaded with, so a later search-clear
+      // knows whether they're narrowed and need a full refresh.
+      loadedQueryRef.current[key] = q?.trim() || '';
       setOptionsMap(prev => ({ ...prev, [key]: opts }));
     } catch {
       setOptionsMap(prev => ({ ...prev, [key]: [] }));
@@ -837,35 +846,46 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
 
   const handleFilterOpen = useCallback((key: string) => {
     if (key === distributorFieldKey) return;
-    // Skip the API call when this filter already has a selection, or its options
-    // are already loaded — no point refetching what the user has already chosen.
-    const hasSelections = filters[key]?.length > 0 && filters[key][0] !== '';
+    // Only fetch when there are no options to show. If options are already loaded
+    // we don't refetch (avoids the redundant call when reopening an untouched or
+    // already-populated filter). But if options are missing — even when the filter
+    // has selections — we must load so the list is visible and editable.
     const hasOpts = optionsMap[key]?.length > 0;
-    if (!hasSelections && !hasOpts) loadFilterOptions(key);
-  }, [distributorFieldKey, filters, optionsMap, loadFilterOptions]);
+    if (!hasOpts) loadFilterOptions(key);
+  }, [distributorFieldKey, optionsMap, loadFilterOptions]);
 
   // Debounced server-side search for custom filters (controlled search text).
   const handleFilterInputChange = useCallback((key: string, inputValue: string) => {
     if (key === distributorFieldKey) return;
 
     const isSearchCleared = !inputValue || inputValue.trim() === '';
+    // Are the options currently loaded for this key narrowed by a search query?
+    // We read this from loadedQueryRef (a ref, NOT searchTextMap) because the
+    // controlled searchText is already reset to '' by the time the dropdown's
+    // close handler calls onSearchChange('') — so searchTextMap can't tell us.
+    const optionsAreNarrowed = (loadedQueryRef.current[key] || '').trim() !== '';
 
     setSearchTextMap(prev => ({ ...prev, [key]: inputValue }));
 
-    // A cleared search never triggers a fetch. Clearing the box (or the dropdown
-    // auto-clearing on close) has nothing new to load — this is what would
-    // otherwise cause a spurious API call the next time the filter is opened.
+    // Always cancel any pending debounced fetch first.
+    if (timeoutRefs.current[key]) {
+      clearTimeout(timeoutRefs.current[key]);
+      delete timeoutRefs.current[key];
+    }
+
+    // Search cleared: if the loaded options are narrowed by a previous query,
+    // reload the full unsearched list IMMEDIATELY (not debounced) so the stale,
+    // search-narrowed options are refreshed before the dropdown can be reopened.
+    // If they were NOT narrowed (empty→empty on initial open / close), do nothing —
+    // this keeps a selected/full filter's options intact on reopen.
     if (isSearchCleared) {
-      if (timeoutRefs.current[key]) {
-        clearTimeout(timeoutRefs.current[key]);
-        delete timeoutRefs.current[key];
+      if (optionsAreNarrowed) {
+        loadFilterOptions(key, '');
       }
       return;
     }
 
-    if (timeoutRefs.current[key]) {
-      clearTimeout(timeoutRefs.current[key]);
-    }
+    // A real query was typed: debounce the server-side search.
     timeoutRefs.current[key] = setTimeout(() => {
       delete timeoutRefs.current[key];
       loadFilterOptions(key, inputValue);
