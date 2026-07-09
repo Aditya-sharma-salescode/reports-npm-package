@@ -560,9 +560,15 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
     const hierarchyOrder = salesConfig?.hierarchyOrder || [];
     const supplierLevel = hierarchyOrder.length > 0 ? hierarchyOrder[hierarchyOrder.length - 1] : 'supplier';
 
-    const isDistributorChange = key === distributorFieldKey || key === supplierLevel
-      || key === 'distributor_type' || key === 'distributor_division';
     const isCustomFilter = customFilters.some(cf => cf.alias === key);
+    // distributor_type/division only act as a "distributor change" (which wipes all
+    // other custom filters) when they come from the TopFilterBar. If the report
+    // configures them AS custom filters, treat them like any other custom filter so
+    // they only drive the normal interdependency cascade — not a blanket reset.
+    const isDistributorChange = !isCustomFilter && (
+      key === distributorFieldKey || key === supplierLevel
+      || key === 'distributor_type' || key === 'distributor_division'
+    );
     const hadSelections = filters[key]?.length > 0 && filters[key][0] !== '';
     const hasSelections = values.length > 0 && values[0] !== '';
 
@@ -603,9 +609,12 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
         delete next[distributorFieldKey];
       }
 
-      // Distributor-level change → clear all custom + merged filters
+      // Distributor-level change → clear all custom + merged filters.
+      // Never clear the key currently being changed — distributor_type/division
+      // are themselves custom filters, so clearing them here would immediately
+      // wipe the selection the user just made (the "resets on select" glitch).
       if (isDistributorChange) {
-        customFilters.forEach(cf => delete next[cf.alias]);
+        customFilters.forEach(cf => { if (cf.alias !== key) delete next[cf.alias]; });
         Object.keys(selectedReport.mergedFilters ?? {}).forEach(mf => {
           delete next[mf]; delete next[`${mf}_dynamic`];
         });
@@ -623,7 +632,7 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
     if (isDistributorChange || filtersToClear.length > 0 || shouldClearDistributor) {
       setSearchTextMap(prev => {
         const u = { ...prev };
-        if (isDistributorChange) customFilters.forEach(cf => delete u[cf.alias]);
+        if (isDistributorChange) customFilters.forEach(cf => { if (cf.alias !== key) delete u[cf.alias]; });
         if (shouldClearDistributor && distributorFieldKey) delete u[distributorFieldKey];
         filtersToClear.forEach(k => delete u[k]);
         return u;
@@ -634,14 +643,18 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
     if (isDistributorChange) {
       setOptionsMap(prev => {
         const u = { ...prev };
-        customFilters.forEach(cf => delete u[cf.alias]);
+        customFilters.forEach(cf => { if (cf.alias !== key) delete u[cf.alias]; });
         Object.keys(selectedReport.mergedFilters ?? {}).forEach(mf => {
           delete u[mf];
           (selectedReport.mergedFilters?.[mf] || []).forEach(s => delete u[s.alias]);
         });
         return u;
       });
-      setCustomFilterSelectionOrder([]);
+      // Reset selection order, but keep the current key if it's a custom filter
+      // that still has a selection (e.g. selecting distributor_type from the row).
+      setCustomFilterSelectionOrder(
+        isCustomFilter && hasSelections ? [key] : []
+      );
     }
 
     if (shouldClearDistributor && distributorFieldKey) {
