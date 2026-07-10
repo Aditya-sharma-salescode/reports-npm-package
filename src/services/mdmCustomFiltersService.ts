@@ -2,14 +2,15 @@ import type { newReportConfig } from '../types/mdmReportsUtils';
 import type { FilterOption } from './types';
 import { fetchAvailableFilters } from './reportsDataService';
 
-const GLOBAL_FILTERS = ['distributor_code'];
-
 /**
  * Loads and processes custom filters for a given report config:
  * - Fetches available filters from the API
  * - Removes filtersToHide
- * - Removes global filters (distributor_code)
  * - Removes merged filter aliases AND their source aliases
+ * - Removes distributor_code ONLY when it is the active distributor field (it would
+ *   then be driven by the TopFilterBar's Distributor dropdown, so showing it again
+ *   as a custom filter would create two controls editing the same selection).
+ *   Otherwise distributor_code is shown as a normal custom filter.
  */
 export async function loadCustomFiltersForReport(
   reportConfig: newReportConfig | null
@@ -30,8 +31,14 @@ export async function loadCustomFiltersForReport(
     }
   }
 
+  // Hide distributor_code only if the TopFilterBar already owns it as the
+  // distributor field (avoids a duplicate control for the same selection).
+  const distributorFieldOwnsCode =
+    reportConfig.distributorFilter?.enabled &&
+    (reportConfig.distributorFilter?.field ?? 'distributor_code') === 'distributor_code';
+
   return allFilters.filter((f) => {
-    if (GLOBAL_FILTERS.includes(f.alias)) return false;
+    if (f.alias === 'distributor_code' && distributorFieldOwnsCode) return false;
     if (filtersToHide.has(f.alias)) return false;
     if (mergedFilterAliases.has(f.alias)) return false;
     if (mergedSourceAliases.has(f.alias)) return false;
