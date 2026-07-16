@@ -3,6 +3,7 @@ import { ReportTiles } from './screens/ReportTiles';
 import { MdmReportsNewFilter } from './screens/MdmReportsNewFilter';
 import { fetchReportConfigs } from './services/configService';
 import { setDatastreamBaseUrl, setHostBaseUrl, setReportBaseUrl } from './config/urls';
+import { setParentTenantId } from './config/auth';
 import type { newReportConfig } from './types/mdmReportsUtils';
 
 type Screen = 'tiles' | 'filter';
@@ -73,12 +74,15 @@ export function ReportsApp({ reportCards: reportCardsProp, datastreamBaseUrl, ho
 
   function handleSelectReport(config: newReportConfig) {
     setDatastreamBaseUrl(config.getAPI || datastreamBaseUrl || null);
+    // Config-driven x-parent-tenant-id header for this report's requests.
+    setParentTenantId(config.sendParentHeader ? config.parentHeaderValue : '');
     setSelectedReport(config);
     setScreen('filter');
   }
 
   function handleBack() {
     setDatastreamBaseUrl(datastreamBaseUrl || null);
+    setParentTenantId('');
     setScreen('tiles');
     setSelectedReport(null);
   }

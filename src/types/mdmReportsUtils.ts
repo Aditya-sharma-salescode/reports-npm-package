@@ -51,6 +51,14 @@ export interface newReportConfig {
    * (`company: ["britannia"]`).
    */
   sendCustomPayload?: CustomPayloadEntry[];
+  /**
+   * When true, the `x-parent-tenant-id` header is sent on this report's
+   * datastream requests (search, filter-values, preview, download), using
+   * `parentHeaderValue` as its value. When false/absent, the header is omitted.
+   */
+  sendParentHeader?: boolean;
+  /** Value for the `x-parent-tenant-id` header, e.g. "digivyapar". Only used when sendParentHeader is true. */
+  parentHeaderValue?: string;
 }
 
 export interface CustomPayloadEntry {

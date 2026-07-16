@@ -31,6 +31,18 @@ export function getTenantId(): string {
   return localStorage.getItem('accountId') || '';
 }
 
+ * Deliberately NOT persisted to localStorage: it is per-report, so a stale value
+
+/** Set (or clear) the config-driven parent tenant id. Pass '' to disable the header. */
+export function setParentTenantId(value: string | null | undefined): void {
+  parentTenantId = (value ?? '').trim();
+}
+
+/** Read the config-driven parent tenant id. */
+export function getParentTenantId(): string {
+  return parentTenantId;
+}
+
 export function getAuthContext(): { loginId: string; email: string } {
   try {
     const raw = localStorage.getItem('authContext') || '{}';
@@ -51,6 +63,10 @@ export function getDatastreamHeaders(): Record<string, string> {
     'Content-Type': 'application/json',
     'X-Tenant-ID': getTenantId(),
   };
+  const parent = getParentTenantId();
+  if (parent) {
+    headers['x-parent-tenant-id'] = parent;
+  }
   if (token) {
     headers['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
   }
