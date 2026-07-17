@@ -31,7 +31,15 @@ export function getTenantId(): string {
   return localStorage.getItem('accountId') || '';
 }
 
+/**
+ * Config-driven value for the `x-parent-tenant-id` header, sourced from the
+ * selected report config (sendParentHeader + parentHeaderValue). Set when a
+ * report is selected, cleared on back. When empty, the header is omitted.
+ *
  * Deliberately NOT persisted to localStorage: it is per-report, so a stale value
+ * must not survive a reload or leak onto a different report.
+ */
+let parentTenantId = '';
 
 /** Set (or clear) the config-driven parent tenant id. Pass '' to disable the header. */
 export function setParentTenantId(value: string | null | undefined): void {
