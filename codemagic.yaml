@@ -17,10 +17,14 @@ workflows:
       - name: Build Web App
         script: |
           # Suffix appended to the runtime tenant for the config-fetch API only.
-          # Tenant-agnostic: prod config buckets are "<tenant>-prod", staging is "<tenant>".
+          # Tenant-agnostic: prod config buckets are "<tenant>-prod",
+          # staging (DEMO) is "<tenant>-stg", UAT is "<tenant>".
           case "$ENVIRONMENT" in
-            "UAT"|"DEMO")
+            "UAT")
               export VITE_CONFIG_TENANT_SUFFIX=""
+              ;;
+            "DEMO")
+              export VITE_CONFIG_TENANT_SUFFIX="-stg"
               ;;
             "PROD")
               export VITE_CONFIG_TENANT_SUFFIX="-prod"

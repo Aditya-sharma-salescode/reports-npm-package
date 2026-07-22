@@ -17,15 +17,17 @@ interface MarketplaceResponse {
  * Build-time environment suffix appended to the runtime tenant for the
  * config-fetch API only.
  *
- * The parent portal sets the same ACCOUNT_ID (e.g. "zydus") on both staging and
- * prod, so the runtime tenant alone can't tell the prod config bucket from the
- * staging one. The standalone app is built per-environment (codemagic
- * ENVIRONMENT), so the PROD build sets VITE_CONFIG_TENANT_SUFFIX="-prod" and any
- * tenant "zydus" becomes "zydus-prod". This is tenant-agnostic — the tenant name
- * itself stays runtime-derived from the cookie, nothing tenant-specific is baked
- * into the build.
+ * The parent portal sets the same ACCOUNT_ID (e.g. "zydus") across environments,
+ * so the runtime tenant alone can't tell one config bucket from another. The
+ * standalone app is built per-environment (codemagic ENVIRONMENT), so each build
+ * sets VITE_CONFIG_TENANT_SUFFIX and any tenant "zydus" becomes "zydus<suffix>":
+ *   PROD  → "-prod"  ("zydus-prod")
+ *   DEMO  → "-stg"   ("zydus-stg")   // staging
+ *   UAT   → ""       ("zydus")
+ * This is tenant-agnostic — the tenant name itself stays runtime-derived from the
+ * cookie, nothing tenant-specific is baked into the build.
  *
- * Empty in staging/uat/demo and in the npm-library build → unchanged behavior.
+ * Empty for UAT and in the npm-library build → unchanged behavior.
  */
 const CONFIG_TENANT_SUFFIX = (import.meta.env.VITE_CONFIG_TENANT_SUFFIX ?? '').trim();
 
