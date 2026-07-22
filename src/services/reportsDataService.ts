@@ -186,16 +186,48 @@ export async function fetchFilterValues(
 
 // ─── Column / Filter Definitions ──────────────────────────────────────────────
 
+/**
+ * The `/report-defs/fields` response carries BOTH the filter defs
+ * (`fields.filters.map`) and the column defs (`fields.columns`). Filters are
+ * loaded by the filter screen and columns by the preview screen, so the endpoint
+ * used to be hit twice per report. This memo dedupes by report name: concurrent
+ * callers share one in-flight request, and repeat callers reuse the response.
+ *
+ * Keyed by report name; a rejected fetch is evicted so the next call retries.
+ */
+interface ReportFieldsData {
+  fields?: {
+    filters?: { map?: Record<string, FilterOption> };
+    columns?: ColumnOption[];
+  };
+}
+
+const reportFieldsCache = new Map<string, Promise<ReportFieldsData>>();
+
+function fetchReportFields(reportName: string): Promise<ReportFieldsData> {
+  const cached = reportFieldsCache.get(reportName);
+  if (cached) return cached;
+
+  const promise = datastreamGet('/report-defs/fields', { report: reportName })
+    .then(response => response.data as ReportFieldsData)
+    .catch(err => {
+      reportFieldsCache.delete(reportName);
+      throw err;
+    });
+  reportFieldsCache.set(reportName, promise);
+  return promise;
+}
+
 export async function fetchAvailableFilters(reportName: string): Promise<FilterOption[]> {
-  const response = await datastreamGet('/report-defs/fields', { report: reportName });
-  // API returns filters at response.data.fields.filters.map (object keyed by field1, field2, …)
-  const filtersObj = response.data?.fields?.filters?.map;
+  const data = await fetchReportFields(reportName);
+  // API returns filters at data.fields.filters.map (object keyed by field1, field2, …)
+  const filtersObj = data?.fields?.filters?.map;
   return filtersObj ? Object.values(filtersObj) : [];
 }
 
 export async function fetchColumnDefinitions(reportName: string): Promise<ColumnOption[]> {
-  const response = await datastreamGet('/report-defs/fields', { report: reportName });
-  return response.data?.fields?.columns ?? [];
+  const data = await fetchReportFields(reportName);
+  return data?.fields?.columns ?? [];
 }
 
 // ─── Downloads (async submit + poll) ──────────────────────────────────────────
