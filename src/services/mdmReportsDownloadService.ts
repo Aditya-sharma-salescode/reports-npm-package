@@ -60,31 +60,34 @@ function triggerBrowserDownload(blob: Blob, reportName: string, format: string) 
 
 // ─── Task-based download polling ───────────────────────────────────────────────
 
-async function pollTaskAndDownload(taskId: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const interval = setInterval(async () => {
-      try {
-        const response = await hostGet(`/tasks/${taskId}`);
-        const feature = response.data?.features?.[0];
-        const status: string = (feature?.status ?? '').toLowerCase();
-        const fileKeys: string[] = feature?.attributes?.fileKeys ?? [];
+const TASK_POLL_INTERVAL_MS = 5000;
+const TASK_POLL_TIMEOUT_MS = 20 * 60 * 1000;
 
-        if (status === 'success') {
-          clearInterval(interval);
-          for (const fileKey of fileKeys) {
-            await fetchAndDownloadReport(fileKey);
-          }
-          resolve();
-        } else if (status === 'failure') {
-          clearInterval(interval);
-          reject(new Error('Report generation failed'));
-        }
-      } catch (err) {
-        clearInterval(interval);
-        reject(err);
+async function pollTaskAndDownload(taskId: string): Promise<void> {
+  const startedAt = Date.now();
+
+  while (true) {
+    if (Date.now() - startedAt > TASK_POLL_TIMEOUT_MS) {
+      throw new Error('Report generation timed out');
+    }
+
+    const response = await hostGet(`/tasks/${taskId}`);
+    const feature = response.data?.features?.[0];
+    const status: string = (feature?.status ?? '').toLowerCase();
+    const fileKeys: string[] = feature?.attributes?.fileKeys ?? [];
+
+    if (status === 'success') {
+      for (const fileKey of fileKeys) {
+        await fetchAndDownloadReport(fileKey);
       }
-    }, 1000);
-  });
+      return;
+    }
+    if (status === 'failure') {
+      throw new Error('Report generation failed');
+    }
+
+    await new Promise(r => setTimeout(r, TASK_POLL_INTERVAL_MS));
+  }
 }
 
 // ─── Filter / location / user builders ────────────────────────────────────────

@@ -301,7 +301,7 @@ export async function pollAsyncReport(
   runId: string,
   options: PollAsyncReportOptions = {}
 ): Promise<Blob> {
-  const { intervalMs = 2000, timeoutMs = 10 * 60 * 1000 } = options;
+  const { intervalMs = 5000, timeoutMs = 20 * 60 * 1000 } = options;
   const startedAt = Date.now();
 
   while (true) {
