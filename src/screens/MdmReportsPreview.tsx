@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type { Dayjs } from 'dayjs';
 import { fetchReportData, fetchColumnDefinitions, type ReportSearchParams } from '../services/reportsDataService';
-import { isMergedFilterForReport, getMergedFilterSources } from '../services/mdmCustomFiltersService';
+import { isMergedFilterForReport, getMergedFilterSources, isSingleSelectFilterForReport } from '../services/mdmCustomFiltersService';
 import { buildLocationFilters, buildUserFilters } from '../services/mdmReportsDownloadService';
 import { CompactCheckboxDropdown } from '../components/CompactCheckboxDropdown';
 import { applyCustomPayloadToMap, type newReportConfig } from '../types/mdmReportsUtils';
@@ -302,7 +302,8 @@ export function MdmReportsPreview({
                     placeholder={cf.display}
                     width={152}
                     dropdownWidth={250}
-                    selectAllLabel="Select all"
+                    multiSelect={!isSingleSelectFilterForReport(cf.alias, reportConfig)}
+                    selectAllLabel={isSingleSelectFilterForReport(cf.alias, reportConfig) ? undefined : "Select all"}
                   />
                 ))}
                 {customFilterResetBtn}
@@ -346,7 +347,8 @@ export function MdmReportsPreview({
                   placeholder={cf.display}
                   width={152}
                   dropdownWidth={250}
-                  selectAllLabel="Select all"
+                  multiSelect={!isSingleSelectFilterForReport(cf.alias, reportConfig)}
+                  selectAllLabel={isSingleSelectFilterForReport(cf.alias, reportConfig) ? undefined : "Select all"}
                 />
               ))}
               {customFilterResetBtn}

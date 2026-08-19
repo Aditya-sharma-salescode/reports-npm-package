@@ -24,6 +24,13 @@ export interface newReportConfig {
   shouldShowCustomFilters?: boolean;
   columnsToHide?: string[];
   filtersToHide?: string[];
+  /**
+   * Custom filter aliases that should only allow one option at a time, e.g.
+   * ["distributor_code", "state"]. Listed filters render as radios instead of
+   * checkboxes and picking an option replaces the previous selection. The value
+   * is still carried as a one-element array, so payloads are unchanged.
+   */
+  singleSelectFilters?: string[];
   isLiveReport?: boolean;
   mergedFilters?: Record<string, MergedFilterSource[]>;
   showLast7DaysFilter?: boolean;

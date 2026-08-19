@@ -59,3 +59,14 @@ export function getMergedFilterSources(
 ) {
   return reportConfig?.mergedFilters?.[filterAlias] ?? [];
 }
+
+/**
+ * True when the report config lists this filter alias in `singleSelectFilters`,
+ * meaning the dropdown should allow only one option at a time.
+ */
+export function isSingleSelectFilterForReport(
+  filterAlias: string,
+  reportConfig: newReportConfig | null
+): boolean {
+  return Boolean(reportConfig?.singleSelectFilters?.includes(filterAlias));
+}
