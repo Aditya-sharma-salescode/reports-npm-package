@@ -287,6 +287,7 @@ export async function downloadReport(params: DownloadParams): Promise<void> {
       year: dateRangeType === 'period' ? year : undefined,
       ...(effectiveFiltersMap !== undefined ? { filters: { map: effectiveFiltersMap, ...(params.pf ? { pf: params.pf } : {}) } } : {}),
       ...(distributorFilter ? { distributorFilter } : {}),
+      ...(selectedReport.multiSheet === true ? { multiSheet: true } : {}),
       ...(selectedReport.fullAllow === true ? { fullAllow: true } : {}),
       format,
     };
@@ -382,6 +383,7 @@ export async function downloadReport(params: DownloadParams): Promise<void> {
       : {}),
     format,
     ...(distributorFilter ? { distributorFilter } : {}),
+    ...(selectedReport.multiSheet === true ? { multiSheet: true } : {}),
     ...(hasFiltersMap ? {} : { fullAllow: true }),
   };
   const runId = await submitSnapshotReportAsync(snapshotPayload);

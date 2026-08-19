@@ -253,6 +253,7 @@ export interface LiveReportPayload {
   distributorFilter?: DistributorFilterPayload;
   format: string;
   fullAllow?: boolean;
+  multiSheet?: boolean;
 }
 
 export interface SnapshotReportPayload {
@@ -262,6 +263,7 @@ export interface SnapshotReportPayload {
   format?: string;
   distributorFilter?: DistributorFilterPayload;
   fullAllow?: boolean;
+  multiSheet?: boolean;
 }
 
 async function submitAsync(path: string, payload: unknown): Promise<string> {

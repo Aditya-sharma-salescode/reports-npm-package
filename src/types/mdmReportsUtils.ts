@@ -42,6 +42,11 @@ export interface newReportConfig {
   disableValidation?: boolean;
   fullAllow?: boolean;
   /**
+   * When true, `multiSheet: true` is sent in the download payload, asking the
+   * backend to split the report across multiple sheets in the generated file.
+   */
+  multiSheet?: boolean;
+  /**
    * Hardcoded filter values injected into every search, preview, filter-values
    * and download request for this report. Each entry names the API field and
    * the value(s) to send.
