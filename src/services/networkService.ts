@@ -5,7 +5,7 @@ import {
   getAccessToken,
   getTenantId,
 } from '../config/auth';
-import { getDatastreamBaseUrl, getHostBaseUrl } from '../config/urls';
+import { getDatastreamBaseUrl, getHostBaseUrl, getSaleshubBaseUrl } from '../config/urls';
 
 // Send cookies on every cross-origin request (portal auth uses HttpOnly cookies).
 axios.defaults.withCredentials = true;
@@ -40,6 +40,12 @@ export async function datastreamPost(
 /** Host API GET (task polling, distributor meta) */
 export async function hostGet(path: string) {
   const url = `${getHostBaseUrl()}${path}`;
+  return axios.get(url, { headers: getHostHeaders() });
+}
+
+/** Saleshub API GET (distributor list for the newDistFilter dropdown) */
+export async function saleshubGet(path: string) {
+  const url = `${getSaleshubBaseUrl()}${path}`;
   return axios.get(url, { headers: getHostHeaders() });
 }
 

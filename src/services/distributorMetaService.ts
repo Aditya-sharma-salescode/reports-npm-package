@@ -1,4 +1,4 @@
-import { hostGet } from './networkService';
+import { hostGet, saleshubGet } from './networkService';
 import type { DistributorFeature, DistributorMeta } from './types';
 
 const DISTRIBUTOR_HIERARCHY_ENDPOINT =
@@ -120,7 +120,7 @@ export async function fetchNewDistributorOptions(
     });
     if (query) params.set('search', query);
 
-    const response = await hostGet(`/distributors?${params.toString()}`);
+    const response = await saleshubGet(`/distributors?${params.toString()}`);
     const data = response.data;
     // The endpoint has been seen returning both a bare array and a wrapped
     // object, so accept either rather than assuming one shape.

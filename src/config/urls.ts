@@ -21,6 +21,38 @@ const REPORT_URLS: Record<string, string> = {
 
 const MARKETPLACE_URL = 'https://salescode-marketplace.salescode.ai';
 
+// Saleshub API — distributor list for the newDistFilter dropdown (EMAMI-2054).
+// Keyed by the BUILD-time environment, not the runtime accountId: the parent
+// portal sets the same ACCOUNT_ID across environments, so getEnv() can't tell
+// them apart. VITE_CONFIG_TENANT_SUFFIX is set per-environment by codemagic
+// ("" → UAT, "-stg" → DEMO/staging, "-prod" → PROD).
+const SALESHUB_URLS: Record<string, string> = {
+  prod: 'https://saleshub.salescodeai.com',
+  stg: 'https://saleshub-staging.salescodeai.com',
+  uat: 'https://api.salescodeai.com',
+};
+
+/**
+ * Build-time environment derived from VITE_CONFIG_TENANT_SUFFIX.
+ * "-prod" → prod | "-stg" → stg | "" (or unset) → uat
+ */
+export function getBuildEnv(): 'prod' | 'stg' | 'uat' {
+  const suffix = (import.meta.env.VITE_CONFIG_TENANT_SUFFIX ?? '').trim();
+  if (suffix === '-prod') return 'prod';
+  if (suffix === '-stg') return 'stg';
+  return 'uat';
+}
+
+let _saleshubBaseUrlOverride: string | null = null;
+
+export function setSaleshubBaseUrl(url: string | null): void {
+  _saleshubBaseUrlOverride = url?.replace(/\/+$/, '') || null;
+}
+
+export function getSaleshubBaseUrl(): string {
+  return _saleshubBaseUrlOverride ?? SALESHUB_URLS[getBuildEnv()] ?? SALESHUB_URLS.uat;
+}
+
 /**
  * Derives environment from accountId stored in localStorage.
  * Contains "uat" → uat | contains "demo" → demo | else → prod
