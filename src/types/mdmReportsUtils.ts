@@ -31,6 +31,13 @@ export interface newReportConfig {
    * is still carried as a one-element array, so payloads are unchanged.
    */
   singleSelectFilters?: string[];
+  /**
+   * When true, a single-select Distributor dropdown is shown alongside the
+   * report's custom filters, sourced from the host `/distributors` endpoint
+   * (all distributors, not just parent DTs — see EMAMI-2054). Its selection is
+   * sent as `distributor_code` like any other custom filter.
+   */
+  newDistFilter?: boolean;
   isLiveReport?: boolean;
   mergedFilters?: Record<string, MergedFilterSource[]>;
   showLast7DaysFilter?: boolean;

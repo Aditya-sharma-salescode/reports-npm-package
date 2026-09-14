@@ -1,6 +1,7 @@
 import type { newReportConfig } from '../types/mdmReportsUtils';
 import type { FilterOption } from './types';
 import { fetchAvailableFilters } from './reportsDataService';
+import { NEW_DIST_FILTER_ALIAS } from './distributorMetaService';
 
 /**
  * Loads and processes custom filters for a given report config:
@@ -31,19 +32,38 @@ export async function loadCustomFiltersForReport(
     }
   }
 
-  // Hide distributor_code only if the TopFilterBar already owns it as the
-  // distributor field (avoids a duplicate control for the same selection).
+  // Hide distributor_code only when the TopFilterBar's Distributor dropdown is
+  // actually rendered and owns it (avoids a duplicate control for the same
+  // selection). In isDistributorView the TopFilterBar is hidden entirely, so
+  // nothing owns distributor_code there — show it as a custom filter instead.
+  // With newDistFilter the TopFilterBar's dropdown is hidden and the custom
+  // filter owns distributor_code instead, so it must not be stripped here.
   const distributorFieldOwnsCode =
     reportConfig.distributorFilter?.enabled &&
+    !reportConfig.isDistributorView &&
+    !reportConfig.newDistFilter &&
     (reportConfig.distributorFilter?.field ?? 'distributor_code') === 'distributor_code';
 
-  return allFilters.filter((f) => {
+  const visible = allFilters.filter((f) => {
     if (f.alias === 'distributor_code' && distributorFieldOwnsCode) return false;
     if (filtersToHide.has(f.alias)) return false;
     if (mergedFilterAliases.has(f.alias)) return false;
     if (mergedSourceAliases.has(f.alias)) return false;
     return true;
   });
+
+  // newDistFilter reports get a Distributor dropdown backed by the host
+  // /distributors endpoint instead of the report's own filter values. It may not
+  // be present in allFilters at all, so add it when missing; when it IS present
+  // we keep the API's display label and just let the new loader own its options.
+  if (reportConfig.newDistFilter && !filtersToHide.has(NEW_DIST_FILTER_ALIAS)) {
+    const exists = visible.some((f) => f.alias === NEW_DIST_FILTER_ALIAS);
+    if (!exists) {
+      visible.unshift({ alias: NEW_DIST_FILTER_ALIAS, display: 'Distributor' });
+    }
+  }
+
+  return visible;
 }
 
 export function isMergedFilterForReport(
@@ -68,5 +88,16 @@ export function isSingleSelectFilterForReport(
   filterAlias: string,
   reportConfig: newReportConfig | null
 ): boolean {
+  // The newDistFilter distributor dropdown is single-select by definition
+  // (EMAMI-2054), so it doesn't need to be repeated in singleSelectFilters.
+  if (reportConfig?.newDistFilter && filterAlias === NEW_DIST_FILTER_ALIAS) return true;
   return Boolean(reportConfig?.singleSelectFilters?.includes(filterAlias));
+}
+
+/** True when this alias's options come from the host /distributors endpoint. */
+export function isNewDistFilter(
+  filterAlias: string,
+  reportConfig: newReportConfig | null
+): boolean {
+  return Boolean(reportConfig?.newDistFilter) && filterAlias === NEW_DIST_FILTER_ALIAS;
 }

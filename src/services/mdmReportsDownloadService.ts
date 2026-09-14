@@ -117,6 +117,14 @@ async function collectDistributorCodes(params: DownloadParams): Promise<string[]
   const { selectedReport, filters, primaryFilter, salesDrillDownPath, geoDrillDownPath } = params;
   const { loginId } = getAuthContext();
 
+  // newDistFilter: the single-select Distributor dropdown is an explicit user
+  // choice, so it wins over any hierarchy-derived codes regardless of
+  // primaryFilter. Empty selection falls through to the normal logic below.
+  if (selectedReport.newDistFilter) {
+    const picked = filters['distributor_code'] ?? [];
+    if (picked.length > 0 && picked[0] !== '') return picked;
+  }
+
   // No primary filter set — fall back to direct distributor selection or logged-in user
   if (!primaryFilter) {
     const directCodes = filters['distributor_code'] ?? [];

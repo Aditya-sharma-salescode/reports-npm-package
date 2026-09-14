@@ -7,9 +7,9 @@ import { GeographicalHierarchyFilter } from '../utils/GeographicalHierarchyFilte
 import { TopFilterBar } from '../components/TopFilterBar';
 import { CompactCheckboxDropdown } from '../components/CompactCheckboxDropdown';
 import { useHierarchyLoaders } from '../hooks/useHierarchyLoaders';
-import { loadCustomFiltersForReport } from '../services/mdmCustomFiltersService';
+import { loadCustomFiltersForReport, isNewDistFilter } from '../services/mdmCustomFiltersService';
 import { fetchFilterValues, fetchLocationUsers, fetchChildrenUsers } from '../services/reportsDataService';
-import { fetchDistributorMeta, filterDistributorsBySelections } from '../services/distributorMetaService';
+import { fetchDistributorMeta, filterDistributorsBySelections, fetchNewDistributorOptions } from '../services/distributorMetaService';
 import { downloadReport, buildLocationFilters, buildUserFilters } from '../services/mdmReportsDownloadService';
 import type { newReportConfig } from '../types/mdmReportsUtils';
 import type { FilterOption, DrillDownPathItem, DistributorFeature } from '../services/types';
@@ -811,6 +811,16 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
   const loadFilterOptions = useCallback(async (key: string, q?: string, overrideFilters?: Record<string, string[]>) => {
     setLoadingMap(prev => ({ ...prev, [key]: true }));
     try {
+      // newDistFilter's distributor list comes from the host /distributors
+      // endpoint, not from this report's filter values, so it skips the
+      // interdependency payload entirely.
+      if (isNewDistFilter(key, reportConfig)) {
+        const opts = await fetchNewDistributorOptions(q);
+        loadedQueryRef.current[key] = q?.trim() || '';
+        setOptionsMap(prev => ({ ...prev, [key]: opts }));
+        return;
+      }
+
       const locationFilters = buildLocationFilters(geoDrillDownPath);
       const userFilters = buildUserFilters(salesDrillDownPath, salesConfig?.hierarchyOrder || []);
       const distributorCodes = distributorFieldKey ? (filters[distributorFieldKey] || []) : [];
@@ -858,18 +868,20 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
   }, [reportConfig, fromDate, toDate, geoDrillDownPath, salesDrillDownPath, salesConfig, filters, distributorFieldKey, buildCustomFilterDependencies]);
 
   const handleFilterOpen = useCallback((key: string) => {
-    if (key === distributorFieldKey) return;
+    // The newDistFilter dropdown owns distributor_code even when it collides
+    // with distributorFieldKey, so it must not be short-circuited here.
+    if (key === distributorFieldKey && !isNewDistFilter(key, reportConfig)) return;
     // Only fetch when there are no options to show. If options are already loaded
     // we don't refetch (avoids the redundant call when reopening an untouched or
     // already-populated filter). But if options are missing — even when the filter
     // has selections — we must load so the list is visible and editable.
     const hasOpts = optionsMap[key]?.length > 0;
     if (!hasOpts) loadFilterOptions(key);
-  }, [distributorFieldKey, optionsMap, loadFilterOptions]);
+  }, [distributorFieldKey, optionsMap, loadFilterOptions, reportConfig]);
 
   // Debounced server-side search for custom filters (controlled search text).
   const handleFilterInputChange = useCallback((key: string, inputValue: string) => {
-    if (key === distributorFieldKey) return;
+    if (key === distributorFieldKey && !isNewDistFilter(key, reportConfig)) return;
 
     const isSearchCleared = !inputValue || inputValue.trim() === '';
     // Are the options currently loaded for this key narrowed by a search query?
@@ -903,7 +915,7 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
       delete timeoutRefs.current[key];
       loadFilterOptions(key, inputValue);
     }, 350);
-  }, [distributorFieldKey, loadFilterOptions]);
+  }, [distributorFieldKey, loadFilterOptions, reportConfig]);
 
   // Clear ONLY the custom filter selections (used by the reset button rendered
   // inside the custom filter row when isDistributorView hides the TopFilterBar).
@@ -1180,7 +1192,7 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
               onDistributorChange={values => distributorFieldKey && handleMultiFilterChange(distributorFieldKey, values)}
               distributorLoading={distributorFieldKey ? (loadingMap[distributorFieldKey] || false) : false}
               onDistributorOpen={() => distributorFieldKey && loadDistributorOptions(distributorFieldKey)}
-              showDistributorFilter={!!distConfig?.enabled && !isDistributorView}
+              showDistributorFilter={!!distConfig?.enabled && !isDistributorView && !reportConfig.newDistFilter}
               onGeoDropdownClose={handleGeoDropdownClose}
               onSalesDropdownClose={handleSalesDropdownClose}
               onReset={handleReset}
