@@ -2,6 +2,7 @@ import axios, { type AxiosRequestConfig } from 'axios';
 import {
   getDatastreamHeaders,
   getHostHeaders,
+  getSaleshubHeaders,
   getAccessToken,
   getTenantId,
 } from '../config/auth';
@@ -46,7 +47,7 @@ export async function hostGet(path: string) {
 /** Saleshub API GET (distributor list for the newDistFilter dropdown) */
 export async function saleshubGet(path: string) {
   const url = `${getSaleshubBaseUrl()}${path}`;
-  return axios.get(url, { headers: getHostHeaders() });
+  return axios.get(url, { headers: getSaleshubHeaders() });
 }
 
 /** Host API POST (task creation) */

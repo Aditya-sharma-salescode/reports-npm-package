@@ -81,6 +81,21 @@ export function getDatastreamHeaders(): Record<string, string> {
   return headers;
 }
 
+/**
+ * Standard headers for saleshub API calls (distributor list).
+ * No `lob` header: it isn't in the saleshub CORS allowlist, so sending it fails
+ * preflight in the browser. Tenant identity comes from the cookies that
+ * withCredentials sends automatically, same as the other APIs.
+ */
+export function getSaleshubHeaders(): Record<string, string> {
+  const token = getAccessToken();
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+  }
+  return headers;
+}
+
 /** Standard headers for host API calls */
 export function getHostHeaders(): Record<string, string> {
   const token = getAccessToken();
