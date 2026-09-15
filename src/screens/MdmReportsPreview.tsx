@@ -261,8 +261,12 @@ export function MdmReportsPreview({
     </svg>
   );
 
+  // newDistFilter adds its Distributor dropdown to the custom filter row, so that
+  // row must render even for reports that switch the report's own custom filters
+  // off via shouldShowCustomFilters: false.
   const showCustomFilters = Boolean(
-    (reportConfig.shouldShowCustomFilters ?? true) && customFilters.length > 0
+    ((reportConfig.shouldShowCustomFilters ?? true) || reportConfig.newDistFilter) &&
+      customFilters.length > 0
   );
 
   // Reset button for the custom filter row (styled like the TopFilterBar reset).

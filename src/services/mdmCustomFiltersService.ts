@@ -19,7 +19,15 @@ export async function loadCustomFiltersForReport(
   if (!reportConfig) return [];
 
   const reportName = reportConfig.filterReportName ?? reportConfig.reportName;
-  const allFilters = await fetchAvailableFilters(reportName);
+  // A report may have no fields config at all (the endpoint 404s / errors). That
+  // must not prevent config-driven filters like newDistFilter from rendering, so
+  // fall back to an empty list instead of letting the failure propagate.
+  let allFilters: FilterOption[] = [];
+  try {
+    allFilters = await fetchAvailableFilters(reportName);
+  } catch {
+    allFilters = [];
+  }
 
   const filtersToHide = new Set(reportConfig.filtersToHide ?? []);
   const mergedFilterAliases = new Set(Object.keys(reportConfig.mergedFilters ?? {}));
@@ -44,7 +52,11 @@ export async function loadCustomFiltersForReport(
     !reportConfig.newDistFilter &&
     (reportConfig.distributorFilter?.field ?? 'distributor_code') === 'distributor_code';
 
-  const visible = allFilters.filter((f) => {
+  // shouldShowCustomFilters: false means the report wants none of its OWN custom
+  // filters; the newDistFilter dropdown below is config-driven and still shows.
+  const ownFiltersHidden = reportConfig.shouldShowCustomFilters === false;
+
+  const visible = (ownFiltersHidden ? [] : allFilters).filter((f) => {
     if (f.alias === 'distributor_code' && distributorFieldOwnsCode) return false;
     if (filtersToHide.has(f.alias)) return false;
     if (mergedFilterAliases.has(f.alias)) return false;

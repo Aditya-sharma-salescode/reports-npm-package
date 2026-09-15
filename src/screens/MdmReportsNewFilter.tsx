@@ -152,6 +152,8 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
       try {
         const cf = await loadCustomFiltersForReport(reportConfig);
         setCustomFilters(cf);
+      } catch {
+        setCustomFilters([]);
       } finally {
         setCustomFiltersLoading(false);
       }
