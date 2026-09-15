@@ -171,7 +171,10 @@ function buildFiltersMap(
   const map: Record<string, string[]> = {};
 
   if (distributorCodes.length > 0) {
-    map['distributor_code'] = distributorCodes;
+    // newDistFilter reports expect the camelCase key in the download payload;
+    // every other report keeps the snake_case key its API already accepts.
+    const distributorKey = selectedReport.newDistFilter ? 'distributorCode' : 'distributor_code';
+    map[distributorKey] = distributorCodes;
   }
 
   // Keys to exclude: hierarchy level fields, all hierarchy level names, distributor field
@@ -204,6 +207,7 @@ function buildFiltersMap(
   excludeKeys.add('distributor_type');
   excludeKeys.add('distributor_division');
   excludeKeys.add('distributor_code');
+  excludeKeys.add('distributorCode');
 
   // Exclude merged filter source aliases
   for (const sources of Object.values(selectedReport.mergedFilters ?? {})) {
