@@ -47,6 +47,13 @@ export interface newReportConfig {
   /** e.g. "1 week" | "4 days" | "5 months" | "1 year" */
   dateRangeAllowed?: string;
   isGSTRReport?: boolean;
+  /**
+   * Restricts the generic download menu to a single format. When neither is set
+   * (or both are), both CSV and XLS are offered. Reports with their own forced
+   * format — isPDFReport, isGSTRReport, customDownload — ignore both flags.
+   */
+  isExcelOnly?: boolean;
+  isCSVOnly?: boolean;
   gstrYearsRange?: number;
   customDownload?: boolean;
   customDateRangeAllowed?: string;

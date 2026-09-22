@@ -128,6 +128,13 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
   const isPreviewDisabled = validationDisabled ? false : !hasFilters;
   const isDownloadDisabled = validationDisabled ? false : !hasFilters;
 
+  // Download format options for the generic flow. A report can pin the menu to a
+  // single format with isExcelOnly / isCSVOnly; with neither set — or both, which
+  // is contradictory — both formats are offered.
+  const formatPinned = reportConfig.isExcelOnly !== reportConfig.isCSVOnly;
+  const showCsvOption = !formatPinned || reportConfig.isCSVOnly === true;
+  const showExcelOption = !formatPinned || reportConfig.isExcelOnly === true;
+
   // ── Load on mount ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (salesConfig?.enabled) loadSalesLevels();
@@ -1221,8 +1228,12 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
                 ) : reportConfig.isGSTRReport || reportConfig.customDownload ? (
                   <div className="sc-download-menu-item" onClick={() => handleDownload('xlsx')}>XLS</div>
                 ) : (<>
-                  <div className="sc-download-menu-item" onClick={() => handleDownload('csv')}>CSV</div>
-                  <div className="sc-download-menu-item" onClick={() => handleDownload('xlsx')}>XLS</div>
+                  {showCsvOption && (
+                    <div className="sc-download-menu-item" onClick={() => handleDownload('csv')}>CSV</div>
+                  )}
+                  {showExcelOption && (
+                    <div className="sc-download-menu-item" onClick={() => handleDownload('xlsx')}>XLS</div>
+                  )}
                 </>)}
               </div>
             )}
