@@ -84,18 +84,22 @@ const NEW_DIST_PAGE_SIZE = 500;
 const NEW_DIST_MAX_PAGES = 40;
 
 interface DistributorListItem {
+  distributorCode?: string;
   code?: string;
   loginId?: string;
-  name?: string;
   distributorName?: string;
+  name?: string;
   [key: string]: unknown;
 }
 
-/** Picks the API value to send, preferring an explicit code over the login id. */
+/**
+ * Picks the API value to send. `distributorCode` is the field this endpoint
+ * actually returns; the others are fallbacks for older/alternate shapes.
+ */
 function toDistributorOption(item: DistributorListItem): { label: string; value: string } | null {
-  const value = String(item.code ?? item.loginId ?? '').trim();
+  const value = String(item.distributorCode ?? item.code ?? item.loginId ?? '').trim();
   if (!value) return null;
-  const name = String(item.name ?? item.distributorName ?? '').trim();
+  const name = String(item.distributorName ?? item.name ?? '').trim();
   return { label: name ? `${name} (${value})` : value, value };
 }
 
