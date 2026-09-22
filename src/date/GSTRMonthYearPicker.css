@@ -32,11 +32,16 @@
 .sc-gstr-popover {
   position: absolute;
   top: calc(100% + 6px);
-  left: 0;
+  /* The trigger sits at the right edge of the header, so anchor the popover to
+     its right — left-anchoring pushes it past the viewport. */
+  right: 0;
   z-index: 1300;
   display: flex;
   flex-direction: column;
-  min-width: 320px;
+  /* Cap to the viewport so the grid never forces horizontal overflow. */
+  width: max-content;
+  min-width: 300px;
+  max-width: calc(100vw - 32px);
   padding: 12px;
   background: #fff;
   border: 1px solid #e0e0e0;
