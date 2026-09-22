@@ -1,0 +1,100 @@
+.sc-gstr-picker {
+  position: relative;
+  display: inline-flex;
+}
+
+.sc-gstr-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 150px;
+  padding: 7px 12px;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.sc-gstr-trigger:hover:not(:disabled) {
+  border-color: #00a392;
+}
+
+.sc-gstr-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.sc-gstr-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 1300;
+  display: flex;
+  flex-direction: column;
+  min-width: 320px;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.sc-gstr-section-label {
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+}
+
+.sc-gstr-month-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.sc-gstr-year-section {
+  padding-top: 8px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.sc-gstr-year-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sc-gstr-cell {
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  color: #444;
+  background: #f9f9f9;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sc-gstr-cell:hover:not(:disabled):not(.sc-gstr-cell-selected) {
+  background: #f0f0f0;
+  border-color: #ccc;
+}
+
+.sc-gstr-cell-selected {
+  color: #00a392;
+  background: #e8f5f3;
+  border-color: #00a392;
+  font-weight: 600;
+}
+
+.sc-gstr-cell:disabled {
+  color: #ccc;
+  cursor: not-allowed;
+}

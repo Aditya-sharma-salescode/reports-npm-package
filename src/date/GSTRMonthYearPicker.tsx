@@ -1,7 +1,13 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import dayjs from 'dayjs';
+import './GSTRMonthYearPicker.css';
 
-const MONTHS = [
+const MONTHS_SHORT = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+const MONTHS_FULL = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
@@ -10,10 +16,17 @@ interface GSTRMonthYearPickerProps {
   selectedMonth: number | null; // 0-indexed
   selectedYear: number | null;
   onChange: (month: number, year: number) => void;
-  yearsRange?: number; // how many years back to show, default 3
+  /** How many years back to show, inclusive of the current year. */
+  yearsRange?: number;
   disabled?: boolean;
 }
 
+/**
+ * Single-button month/year picker for GSTR reports: the button shows the current
+ * selection and opens a popover with a 4-column month grid and a year row.
+ * Future months/years are disabled — a GSTR return can only be pulled for a
+ * period that has already started.
+ */
 export function GSTRMonthYearPicker({
   selectedMonth,
   selectedYear,
@@ -21,73 +34,101 @@ export function GSTRMonthYearPicker({
   yearsRange = 3,
   disabled = false,
 }: GSTRMonthYearPickerProps) {
-  const currentYear = dayjs().year();
-  const years: number[] = [];
-  for (let y = currentYear; y >= currentYear - yearsRange; y--) {
-    years.push(y);
-  }
+  const today = useMemo(() => dayjs(), []);
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  // Default to the current month/year so the report is downloadable immediately,
+  // matching how the date-range filter starts pre-filled.
+  const month = selectedMonth ?? today.month();
+  const year = selectedYear ?? today.year();
+
+  const years = useMemo(() => {
+    const currentYear = today.year();
+    const list: number[] = [];
+    for (let y = currentYear - yearsRange + 1; y <= currentYear; y++) {
+      list.push(y);
+    }
+    return list;
+  }, [today, yearsRange]);
+
+  // Close on outside click, matching the other dropdowns in the filter bar.
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const isMonthDisabled = (m: number) => year === today.year() && m > today.month();
+
+  const handleMonthSelect = (m: number) => {
+    if (isMonthDisabled(m)) return;
+    onChange(m, year);
+    setOpen(false);
+  };
+
+  const handleYearSelect = (y: number) => {
+    // Selecting the current year can strand the month in the future — clamp it.
+    const nextMonth = y === today.year() && month > today.month() ? today.month() : month;
+    onChange(nextMonth, y);
+  };
 
   return (
-    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <label style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase' }}>
-          Month
-        </label>
-        <select
-          value={selectedMonth ?? ''}
-          disabled={disabled}
-          onChange={(e) => {
-            const m = parseInt(e.target.value, 10);
-            if (!isNaN(m)) onChange(m, selectedYear ?? currentYear);
-          }}
-          style={{
-            padding: '6px 10px',
-            border: '1px solid #d1d5db',
-            borderRadius: 6,
-            fontSize: 13,
-            color: '#374151',
-            background: '#fff',
-            minWidth: 130,
-          }}
-        >
-          <option value="">Select Month</option>
-          {MONTHS.map((m, i) => (
-            <option key={m} value={i}>
-              {m}
-            </option>
-          ))}
-        </select>
-      </div>
+    <div className="sc-gstr-picker" ref={wrapRef}>
+      <button
+        type="button"
+        className="sc-gstr-trigger"
+        disabled={disabled}
+        onClick={() => setOpen(o => !o)}
+      >
+        <span>{`${MONTHS_FULL[month]} ${year}`}</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <label style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase' }}>
-          Year
-        </label>
-        <select
-          value={selectedYear ?? ''}
-          disabled={disabled}
-          onChange={(e) => {
-            const y = parseInt(e.target.value, 10);
-            if (!isNaN(y)) onChange(selectedMonth ?? 0, y);
-          }}
-          style={{
-            padding: '6px 10px',
-            border: '1px solid #d1d5db',
-            borderRadius: 6,
-            fontSize: 13,
-            color: '#374151',
-            background: '#fff',
-            minWidth: 90,
-          }}
-        >
-          <option value="">Select Year</option>
-          {years.map((y) => (
-            <option key={y} value={y}>
-              {y}
-            </option>
-          ))}
-        </select>
-      </div>
+      {open && (
+        <div className="sc-gstr-popover">
+          <div className="sc-gstr-section-label">SELECT MONTH</div>
+          <div className="sc-gstr-month-grid">
+            {MONTHS_SHORT.map((label, i) => {
+              const isDisabled = isMonthDisabled(i);
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  className={`sc-gstr-cell${month === i ? ' sc-gstr-cell-selected' : ''}`}
+                  disabled={isDisabled}
+                  onClick={() => handleMonthSelect(i)}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="sc-gstr-year-section">
+            <div className="sc-gstr-section-label">SELECT YEAR</div>
+            <div className="sc-gstr-year-row">
+              {years.map(y => (
+                <button
+                  key={y}
+                  type="button"
+                  className={`sc-gstr-cell${year === y ? ' sc-gstr-cell-selected' : ''}`}
+                  onClick={() => handleYearSelect(y)}
+                >
+                  {y}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

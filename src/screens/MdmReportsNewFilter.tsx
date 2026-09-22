@@ -1132,8 +1132,10 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
               <span className="sc-date-range-label">{reportConfig.isGSTRReport ? 'Month & Year' : 'Date Range'}</span>
               <span className="sc-date-range-asterisk">*</span>
               {reportConfig.isGSTRReport ? (
-                <GSTRMonthYearPicker key={dateFilterKey} selectedMonth={null} selectedYear={null}
-                  onChange={(m, y) => { setFromDate(dayjs().month(m).year(y).startOf('month')); setToDate(dayjs().month(m).year(y).endOf('month')); }}
+                <GSTRMonthYearPicker key={dateFilterKey}
+                  selectedMonth={fromDate ? fromDate.month() : null}
+                  selectedYear={fromDate ? fromDate.year() : null}
+                  onChange={(m, y) => { setFromDate(dayjs().year(y).month(m).startOf('month')); setToDate(dayjs().year(y).month(m).endOf('month')); }}
                   yearsRange={reportConfig.gstrYearsRange ?? 3} />
               ) : (
                 <NewDateFilter key={dateFilterKey} fromDate={fromDate} toDate={toDate}

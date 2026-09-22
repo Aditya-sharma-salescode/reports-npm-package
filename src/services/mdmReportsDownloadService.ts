@@ -328,27 +328,6 @@ export async function downloadReport(params: DownloadParams): Promise<void> {
     return;
   }
 
-  // ── GSTR report ──────────────────────────────────────────────────────────────
-  if (selectedReport.isGSTRReport) {
-    const payload = {
-      attributes: {
-        name: selectedReport.reportName,
-        format,
-        loggedInUserName: loginId,
-        ...(startDate && endDate ? { fromDate: startDate, toDate: endDate } : {}),
-      },
-      lob,
-    };
-    const response = await hostPost(
-      '/tasks/types/ExcelerExecutor/execute?source=portal',
-      payload
-    );
-    const taskId: string = response.data?.features?.[0]?.id;
-    if (!taskId) throw new Error('Task ID not returned');
-    await pollTaskAndDownload(taskId);
-    return;
-  }
-
   // ── Custom download ──────────────────────────────────────────────────────────
   if (selectedReport.customDownload) {
     const metadata: Record<string, string> = {};
