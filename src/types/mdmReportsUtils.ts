@@ -55,6 +55,13 @@ export interface newReportConfig {
   isExcelOnly?: boolean;
   isCSVOnly?: boolean;
   gstrYearsRange?: number;
+  /**
+   * Shows the month/year picker instead of the date-range picker, the same UI
+   * GSTR reports get, without any of isGSTRReport's other behaviour (no-preview,
+   * forced XLS, single-select distributor). The selected month is still sent as
+   * a from/to date range covering that whole month.
+   */
+  monthLevelFilter?: boolean;
   customDownload?: boolean;
   customDateRangeAllowed?: string;
   showAdditionalFilters?: boolean;

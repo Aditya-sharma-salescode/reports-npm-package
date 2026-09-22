@@ -131,6 +131,10 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
   // Download format options for the generic flow. A report can pin the menu to a
   // single format with isExcelOnly / isCSVOnly; with neither set — or both, which
   // is contradictory — both formats are offered.
+  // Month/year picker instead of a date range: GSTR reports always get it, and
+  // any report can opt in with monthLevelFilter.
+  const useMonthPicker = Boolean(reportConfig.isGSTRReport || reportConfig.monthLevelFilter);
+
   const formatPinned = reportConfig.isExcelOnly !== reportConfig.isCSVOnly;
   const showCsvOption = !formatPinned || reportConfig.isCSVOnly === true;
   const showExcelOption = !formatPinned || reportConfig.isExcelOnly === true;
@@ -168,10 +172,12 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
     loadCustom();
   }, [reportConfig]);
 
-  // Reset date filters when switching reports
+  // Reset date filters when switching reports. Month-picker reports start on the
+  // current month so the dates match what the picker displays before it's touched.
   useEffect(() => {
-    setFromDate(dayjs());
-    setToDate(dayjs());
+    const monthPicker = Boolean(reportConfig.isGSTRReport || reportConfig.monthLevelFilter);
+    setFromDate(monthPicker ? dayjs().startOf('month') : dayjs());
+    setToDate(monthPicker ? dayjs().endOf('month') : dayjs());
     setDateFilterKey(prev => prev + 1);
   }, [reportConfig]);
 
@@ -959,7 +965,8 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
     setShowPreview(false);
     setSearchTextMap({});
     setCustomFilterSelectionOrder([]);
-    setFromDate(dayjs()); setToDate(dayjs());
+    setFromDate(useMonthPicker ? dayjs().startOf('month') : dayjs());
+    setToDate(useMonthPicker ? dayjs().endOf('month') : dayjs());
     setDateFilterKey(prev => prev + 1);
     // Re-populate type/division options
     setOptionsMap(prev => ({
@@ -1136,9 +1143,9 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
         <div className="sc-report-header-right">
           {reportConfig.dateRangeFilter && (
             <div className="sc-date-wrap">
-              <span className="sc-date-range-label">{reportConfig.isGSTRReport ? 'Month & Year' : 'Date Range'}</span>
+              <span className="sc-date-range-label">{useMonthPicker ? 'Month & Year' : 'Date Range'}</span>
               <span className="sc-date-range-asterisk">*</span>
-              {reportConfig.isGSTRReport ? (
+              {useMonthPicker ? (
                 <GSTRMonthYearPicker key={dateFilterKey}
                   selectedMonth={fromDate ? fromDate.month() : null}
                   selectedYear={fromDate ? fromDate.year() : null}
