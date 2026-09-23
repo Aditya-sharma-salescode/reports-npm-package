@@ -3,7 +3,7 @@
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
   },
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Plug-and-play reports UI module — config in, full reports flow out.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -14,7 +14,9 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs",
       "types": "./dist/index.d.ts"
-    }
+    },
+    "./dist/style.css": "./dist/style.css",
+    "./style.css": "./dist/style.css"
   },
   "files": [
     "dist"
@@ -35,8 +37,8 @@
     "@mui/x-date-pickers": "^6 || ^7",
     "axios": "^1",
     "dayjs": "^1",
-    "react": "^18",
-    "react-dom": "^18"
+    "react": "^18 || ^19",
+    "react-dom": "^18 || ^19"
   },
   "devDependencies": {
     "@emotion/react": "^11.14.0",

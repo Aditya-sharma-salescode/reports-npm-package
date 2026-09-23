@@ -31,6 +31,58 @@ export function getTenantId(): string {
   return localStorage.getItem('accountId') || '';
 }
 
+/** Decodes a JWT payload without verifying it. Returns null on any malformed input. */
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const json = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join(''),
+    );
+    return JSON.parse(json) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The signed-in user's org type (e.g. "DISTRIBUTOR"), or '' when the session
+ * has none. Checked in order of trustworthiness:
+ *   1. `org_type` inside the access token — signed by the backend, and present
+ *      whether the session was started by this app or a host portal.
+ *   2. `authContext` / `salescodeaiAuth` in localStorage — what host apps write.
+ *   3. The `ORG_TYPE` cookie, for portals that publish it alongside ACCOUNT_ID.
+ *
+ * An absent org type is meaningful, not an error: it identifies an admin-tier
+ * session (see `getReportConfigDomainType`).
+ */
+export function getOrgType(): string {
+  const claims = decodeJwtPayload(getAccessToken());
+  const fromToken = typeof claims?.org_type === 'string' ? claims.org_type : '';
+  if (fromToken) return fromToken.trim();
+
+  for (const key of ['authContext', 'salescodeaiAuth']) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw) as {
+        orgType?: unknown;
+        user?: { orgType?: unknown };
+      };
+      const value = parsed?.orgType ?? parsed?.user?.orgType;
+      if (typeof value === 'string' && value.trim()) return value.trim();
+    } catch {
+      /* malformed entry — fall through to the next source */
+    }
+  }
+
+  return getCookie('ORG_TYPE').trim();
+}
+
 /**
  * Config-driven value for the `x-parent-tenant-id` header, sourced from the
  * selected report config (sendParentHeader + parentHeaderValue). Set when a
