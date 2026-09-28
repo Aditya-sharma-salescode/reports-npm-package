@@ -9,11 +9,26 @@ import type { newReportConfig } from './types/mdmReportsUtils';
 
 type Screen = 'tiles' | 'filter' | 'featureUsage';
 
-/** Id of the built-in Feature Usage Report tile (not from the report config). */
+/** Id of the Feature Usage Report tile inside the app. */
 export const FEATURE_USAGE_REPORT_ID = '__feature_usage_report__';
 
 /**
- * Built-in tile for the Feature Usage Report. It opens its own screen and
+ * `reportName` that turns the Feature Usage Report on for a tenant. Add an
+ * entry with it to the tenant's report config (marketplace clientconfig →
+ * distributor_report_configuration); its name / type / description are used
+ * for the tile, and absent fields fall back to FEATURE_USAGE_CARD. No entry →
+ * no tile.
+ *
+ *   { "id": "feature_usage_report", "reportName": "feature_usage_report",
+ *     "name": "Feature Usage Report", "type": "App Usage" }
+ */
+export const FEATURE_USAGE_REPORT_NAME = 'feature_usage_report';
+
+const isFeatureUsageConfig = (c: newReportConfig) =>
+  c.reportName === FEATURE_USAGE_REPORT_NAME || c.id === FEATURE_USAGE_REPORT_NAME;
+
+/**
+ * Defaults for the Feature Usage Report tile. It opens its own screen and
  * downloads from the Tracebit report API, so only `id`/`name`/`type`/
  * `description` are used — the datastream fields are unused placeholders.
  */
@@ -23,7 +38,7 @@ const FEATURE_USAGE_CARD: newReportConfig = {
   type: 'App Usage',
   description: 'User-wise daily count of app feature usage, devices, logins and logouts.',
   getAPI: '',
-  reportName: 'feature_usage_report',
+  reportName: FEATURE_USAGE_REPORT_NAME,
   templateUrl: '',
   isDistributorView: false,
 };
@@ -43,7 +58,11 @@ interface ReportsAppProps {
   reportBaseUrl?: string;
   /** Hide the Reports title/count/search header bar. Defaults to true. */
   showHeader?: boolean;
-  /** Show the built-in Feature Usage Report tile. Defaults to true. */
+  /**
+   * Feature Usage Report tile. Unset (default): shown only when the report
+   * config has a `feature_usage_report` entry. `true` / `false` force it on /
+   * off regardless of config.
+   */
   showFeatureUsageReport?: boolean;
   /** Override the Feature Usage Report API base URL. Defaults to the Tracebit dev API. */
   featureUsageReportBaseUrl?: string;
@@ -67,7 +86,7 @@ export function ReportsApp({
   hostBaseUrl,
   reportBaseUrl,
   showHeader = true,
-  showFeatureUsageReport = true,
+  showFeatureUsageReport,
   featureUsageReportBaseUrl,
 }: ReportsAppProps) {
   const [screen, setScreen] = useState<Screen>('tiles');
@@ -76,8 +95,15 @@ export function ReportsApp({
   const [loading, setLoading] = useState(!reportCardsProp);
   const [error, setError] = useState<string | null>(null);
 
+  // The Feature Usage entry in config is ON/OFF for the tile; everything else
+  // is a normal datastream report.
   const configuredCards = reportCardsProp ?? fetchedCards ?? [];
-  const reportCards = showFeatureUsageReport ? [...configuredCards, FEATURE_USAGE_CARD] : configuredCards;
+  const featureUsageConfig = configuredCards.find(isFeatureUsageConfig);
+  const otherCards = configuredCards.filter((c) => !isFeatureUsageConfig(c));
+  const featureUsageOn = showFeatureUsageReport ?? !!featureUsageConfig;
+  const reportCards = featureUsageOn
+    ? [...otherCards, { ...FEATURE_USAGE_CARD, ...featureUsageConfig, id: FEATURE_USAGE_REPORT_ID }]
+    : otherCards;
 
   useEffect(() => {
     setFeatureUsageReportBaseUrl(featureUsageReportBaseUrl ?? null);
@@ -104,11 +130,11 @@ export function ReportsApp({
     fetchReportConfigs()
       .then(cards => {
         setFetchedCards(cards);
-        // The built-in Feature Usage tile still has something to show.
-        setError(cards.length === 0 && !showFeatureUsageReport ? 'No report configurations found.' : null);
+        // A forced-on Feature Usage tile still has something to show.
+        setError(cards.length === 0 && showFeatureUsageReport !== true ? 'No report configurations found.' : null);
       })
       .catch((err) => {
-        if (showFeatureUsageReport) {
+        if (showFeatureUsageReport === true) {
           console.warn('[reports-ui] failed to load report configurations', err);
           setFetchedCards([]);
         } else {
