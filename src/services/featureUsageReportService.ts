@@ -44,7 +44,9 @@ export class NotAuthenticatedError extends Error {
  */
 export async function downloadFeatureUsageReport(req: FeatureUsageReportRequest): Promise<string> {
   const token = getAccessToken().replace(/^Bearer\s+/i, '').trim();
-  if (!token) throw new NotAuthenticatedError('Not authenticated: no SalesHub session found. Please sign in again.');
+  // SalesHub session check is disabled on the API for now; the token is still
+  // sent when available. Re-enable together with the API check:
+  // if (!token) throw new NotAuthenticatedError('Not authenticated: no SalesHub session found. Please sign in again.');
 
   const query = new URLSearchParams({ tenant: req.tenant, from: req.from, to: req.to, format: 'xlsx' });
   if (req.userIds?.length) query.set('userIds', req.userIds.join(','));
@@ -54,7 +56,7 @@ export async function downloadFeatureUsageReport(req: FeatureUsageReportRequest)
     res = await fetch(`${getFeatureUsageReportBaseUrl()}/v1/reports/feature-usage?${query}`, {
       headers: {
         'X-Api-Key': getFeatureUsageReportApiKey(),
-        Authorization: `Bearer ${token}`,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         lob: getTenantId() || req.tenant,
         'x-saleshub-env': getBuildEnv(),
       },
