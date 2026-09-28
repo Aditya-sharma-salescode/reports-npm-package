@@ -8,6 +8,12 @@ export function DevApp() {
   useEffect(() => {
     syncAuthFromCookies();
 
+    // Dev only: localhost can't see the portal's ACCOUNT_ID cookie, so seed the
+    // tenant from VITE_TENANT (.env.local) when nothing else set it.
+    if (!localStorage.getItem('accountId') && import.meta.env.VITE_TENANT) {
+      localStorage.setItem('accountId', import.meta.env.VITE_TENANT);
+    }
+
     // // Dev-only fallbacks so the app works standalone during development.
     // if (!localStorage.getItem('authToken')) {
     //   localStorage.setItem(

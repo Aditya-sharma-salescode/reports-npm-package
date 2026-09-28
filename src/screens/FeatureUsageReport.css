@@ -1,0 +1,62 @@
+/* ─── Feature Usage Report ─────────────────────────────────────────────────── */
+.sc-fu-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 720px;
+  padding: 20px;
+  background: #fff;
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+.sc-fu-desc {
+  margin: 0;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.sc-fu-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.sc-fu-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.sc-fu-field input {
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #111827;
+  box-sizing: border-box;
+}
+
+.sc-fu-field input:focus {
+  outline: none;
+  border-color: #00A392;
+}
+
+.sc-fu-wide input {
+  width: 100%;
+}
+
+.sc-fu-alert {
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.sc-fu-alert.warning { background: #fff7ed; color: #9a3412; }
+.sc-fu-alert.error   { background: #fef2f2; color: #b91c1c; }
+.sc-fu-alert.success { background: #ecfdf5; color: #047857; }

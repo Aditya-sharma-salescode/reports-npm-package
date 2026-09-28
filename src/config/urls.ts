@@ -110,3 +110,29 @@ export function getHostBaseUrl(): string {
 export function getReportBaseUrl(): string {
   return _reportBaseUrlOverride ?? REPORT_URLS[getEnv()] ?? REPORT_URLS.prod;
 }
+
+// Tracebit report API (salescode-monitor-api) — the built-in Feature Usage
+// Report. Only the base URL (and key) change per environment; both have
+// defaults so no build variable is required.
+const FEATURE_USAGE_REPORT_API_DEFAULT = 'https://dev-monitor-api.salescode.ai';
+const FEATURE_USAGE_REPORT_KEY_DEFAULT = 'ebdc23e884bbf9d7cd476adfe2305e634f603874baaaf518';
+
+let _featureUsageBaseUrlOverride: string | null = null;
+
+/** Override the Feature Usage Report API base URL (e.g. from a host prop). */
+export function setFeatureUsageReportBaseUrl(url: string | null): void {
+  _featureUsageBaseUrlOverride = url?.replace(/\/+$/, '') || null;
+}
+
+export function getFeatureUsageReportBaseUrl(): string {
+  return (
+    _featureUsageBaseUrlOverride ||
+    (import.meta.env.VITE_FEATURE_REPORT_API_BASE_URL ?? '').trim().replace(/\/+$/, '') ||
+    FEATURE_USAGE_REPORT_API_DEFAULT
+  );
+}
+
+/** `X-Api-Key` for the Feature Usage Report API (the API's REPORT_API_KEY). */
+export function getFeatureUsageReportApiKey(): string {
+  return (import.meta.env.VITE_FEATURE_REPORT_API_KEY ?? '').trim() || FEATURE_USAGE_REPORT_KEY_DEFAULT;
+}

@@ -1,5 +1,8 @@
 // ─── Main component ────────────────────────────────────────────────────────────
-export { ReportsApp } from './ReportsApp';
+export { ReportsApp, FEATURE_USAGE_REPORT_ID } from './ReportsApp';
+export { FeatureUsageReport } from './screens/FeatureUsageReport';
+export { downloadFeatureUsageReport } from './services/featureUsageReportService';
+export type { FeatureUsageReportRequest } from './services/featureUsageReportService';
 
 // ─── Public types (host app needs these to construct reportCards config) ────────
 export type {
@@ -26,6 +29,6 @@ export {
 } from './types/mdmReportsUtils';
 
 // ─── Config helpers (env detection, URL resolvers) ──────────────────────────────
-export { getEnv, getDatastreamBaseUrl, setDatastreamBaseUrl, getHostBaseUrl, setHostBaseUrl, getReportBaseUrl, setReportBaseUrl } from './config/urls';
+export { getEnv, getDatastreamBaseUrl, setDatastreamBaseUrl, getHostBaseUrl, setHostBaseUrl, getReportBaseUrl, setReportBaseUrl, getFeatureUsageReportBaseUrl, setFeatureUsageReportBaseUrl } from './config/urls';
 export { fetchReportConfigs } from './services/configService';
 export { getAccessToken, getTenantId, getAuthContext, syncAuthFromCookies } from './config/auth';
