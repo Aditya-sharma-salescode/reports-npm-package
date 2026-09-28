@@ -1,12 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { ReportTiles } from './screens/ReportTiles';
 import { MdmReportsNewFilter } from './screens/MdmReportsNewFilter';
+import { FeatureUsageReport } from './screens/FeatureUsageReport';
 import { fetchReportConfigs } from './services/configService';
-import { setDatastreamBaseUrl, setHostBaseUrl, setReportBaseUrl } from './config/urls';
+import { setDatastreamBaseUrl, setFeatureUsageReportBaseUrl, setHostBaseUrl, setReportBaseUrl } from './config/urls';
 import { setParentTenantId } from './config/auth';
 import type { newReportConfig } from './types/mdmReportsUtils';
 
-type Screen = 'tiles' | 'filter';
+type Screen = 'tiles' | 'filter' | 'featureUsage';
+
+/** Id of the built-in Feature Usage Report tile (not from the report config). */
+export const FEATURE_USAGE_REPORT_ID = '__feature_usage_report__';
+
+/**
+ * Built-in tile for the Feature Usage Report. It opens its own screen and
+ * downloads from the Tracebit report API, so only `id`/`name`/`type`/
+ * `description` are used — the datastream fields are unused placeholders.
+ */
+const FEATURE_USAGE_CARD: newReportConfig = {
+  id: FEATURE_USAGE_REPORT_ID,
+  name: 'Feature Usage Report',
+  type: 'App Usage',
+  description: 'User-wise daily count of app feature usage, devices, logins and logouts.',
+  getAPI: '',
+  reportName: 'feature_usage_report',
+  templateUrl: '',
+  isDistributorView: false,
+};
 
 interface ReportsAppProps {
   /**
@@ -23,6 +43,10 @@ interface ReportsAppProps {
   reportBaseUrl?: string;
   /** Hide the Reports title/count/search header bar. Defaults to true. */
   showHeader?: boolean;
+  /** Show the built-in Feature Usage Report tile. Defaults to true. */
+  showFeatureUsageReport?: boolean;
+  /** Override the Feature Usage Report API base URL. Defaults to the Tracebit dev API. */
+  featureUsageReportBaseUrl?: string;
 }
 
 /**
@@ -37,14 +61,28 @@ interface ReportsAppProps {
  *   localStorage.accountId   — Tenant ID (used for env detection + marketplace lob)
  *   localStorage.authContext  — JSON: { user: { loginId, email } }
  */
-export function ReportsApp({ reportCards: reportCardsProp, datastreamBaseUrl, hostBaseUrl, reportBaseUrl, showHeader = true }: ReportsAppProps) {
+export function ReportsApp({
+  reportCards: reportCardsProp,
+  datastreamBaseUrl,
+  hostBaseUrl,
+  reportBaseUrl,
+  showHeader = true,
+  showFeatureUsageReport = true,
+  featureUsageReportBaseUrl,
+}: ReportsAppProps) {
   const [screen, setScreen] = useState<Screen>('tiles');
   const [selectedReport, setSelectedReport] = useState<newReportConfig | null>(null);
   const [fetchedCards, setFetchedCards] = useState<newReportConfig[] | null>(null);
   const [loading, setLoading] = useState(!reportCardsProp);
   const [error, setError] = useState<string | null>(null);
 
-  const reportCards = reportCardsProp ?? fetchedCards ?? [];
+  const configuredCards = reportCardsProp ?? fetchedCards ?? [];
+  const reportCards = showFeatureUsageReport ? [...configuredCards, FEATURE_USAGE_CARD] : configuredCards;
+
+  useEffect(() => {
+    setFeatureUsageReportBaseUrl(featureUsageReportBaseUrl ?? null);
+    return () => setFeatureUsageReportBaseUrl(null);
+  }, [featureUsageReportBaseUrl]);
 
   // Apply base URL overrides from props; clear on unmount
   useEffect(() => {
@@ -66,13 +104,26 @@ export function ReportsApp({ reportCards: reportCardsProp, datastreamBaseUrl, ho
     fetchReportConfigs()
       .then(cards => {
         setFetchedCards(cards);
-        setError(cards.length === 0 ? 'No report configurations found.' : null);
+        // The built-in Feature Usage tile still has something to show.
+        setError(cards.length === 0 && !showFeatureUsageReport ? 'No report configurations found.' : null);
       })
-      .catch(() => setError('Failed to load report configurations.'))
+      .catch((err) => {
+        if (showFeatureUsageReport) {
+          console.warn('[reports-ui] failed to load report configurations', err);
+          setFetchedCards([]);
+        } else {
+          setError('Failed to load report configurations.');
+        }
+      })
       .finally(() => setLoading(false));
-  }, [reportCardsProp]);
+  }, [reportCardsProp, showFeatureUsageReport]);
 
   function handleSelectReport(config: newReportConfig) {
+    if (config.id === FEATURE_USAGE_REPORT_ID) {
+      setSelectedReport(config);
+      setScreen('featureUsage');
+      return;
+    }
     setDatastreamBaseUrl(config.getAPI || datastreamBaseUrl || null);
     // Config-driven x-parent-tenant-id header for this report's requests.
     setParentTenantId(config.sendParentHeader ? config.parentHeaderValue : '');
@@ -108,6 +159,7 @@ export function ReportsApp({ reportCards: reportCardsProp, datastreamBaseUrl, ho
       {!loading && !error && screen === 'tiles' && (
         <ReportTiles reportCards={reportCards} onSelect={handleSelectReport} showHeader={showHeader} />
       )}
+      {screen === 'featureUsage' && <FeatureUsageReport onBack={handleBack} />}
       {screen === 'filter' && selectedReport && (
         <MdmReportsNewFilter reportConfig={selectedReport} onBack={handleBack} reportCards={reportCards} onSelectReport={handleSelectReport} />
       )}
