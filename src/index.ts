@@ -1,5 +1,5 @@
 // ─── Main component ────────────────────────────────────────────────────────────
-export { ReportsApp, FEATURE_USAGE_REPORT_ID } from './ReportsApp';
+export { ReportsApp, FEATURE_USAGE_REPORT_ID, FEATURE_USAGE_REPORT_NAME } from './ReportsApp';
 export { FeatureUsageReport } from './screens/FeatureUsageReport';
 export { downloadFeatureUsageReport, NotAuthenticatedError } from './services/featureUsageReportService';
 export type { FeatureUsageReportRequest } from './services/featureUsageReportService';
