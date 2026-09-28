@@ -113,7 +113,8 @@ export function getReportBaseUrl(): string {
 
 // Tracebit report API (salescode-monitor-api) — the built-in Feature Usage
 // Report. Only the base URL (and key) change per environment; both have
-// defaults so no build variable is required.
+// defaults so no build variable is required. Requests also carry the user's
+// SalesHub session, which the API validates.
 const FEATURE_USAGE_REPORT_API_DEFAULT = 'https://dev-monitor-api.salescode.ai';
 const FEATURE_USAGE_REPORT_KEY_DEFAULT = 'ebdc23e884bbf9d7cd476adfe2305e634f603874baaaf518';
 

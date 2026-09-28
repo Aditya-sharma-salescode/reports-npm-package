@@ -1,4 +1,5 @@
-import { getFeatureUsageReportApiKey, getFeatureUsageReportBaseUrl } from '../config/urls';
+import { getAccessToken, getTenantId } from '../config/auth';
+import { getBuildEnv, getFeatureUsageReportApiKey, getFeatureUsageReportBaseUrl } from '../config/urls';
 
 /**
  * Feature Usage Report download from the Tracebit report API
@@ -25,15 +26,38 @@ export function istToday(): string {
   return new Date(Date.now() + IST_OFFSET_MS).toISOString().slice(0, 10);
 }
 
-/** Downloads the report and saves it via the browser; returns the file name. */
+/** Thrown when the SalesHub session is missing, invalid or expired (HTTP 401). */
+export class NotAuthenticatedError extends Error {
+  constructor(message = 'Not authenticated. Please sign in again.') {
+    super(message);
+    this.name = 'NotAuthenticatedError';
+  }
+}
+
+/**
+ * Downloads the report and saves it via the browser; returns the file name.
+ *
+ * Authenticated with the API key plus the user's SalesHub session: the token
+ * (`localStorage.authToken`), the tenant as `lob` (`localStorage.accountId`)
+ * and the build's SalesHub environment. The API validates the token with
+ * SalesHub `/auth/me` and limits the report to the token's tenant.
+ */
 export async function downloadFeatureUsageReport(req: FeatureUsageReportRequest): Promise<string> {
+  const token = getAccessToken().replace(/^Bearer\s+/i, '').trim();
+  if (!token) throw new NotAuthenticatedError('Not authenticated: no SalesHub session found. Please sign in again.');
+
   const query = new URLSearchParams({ tenant: req.tenant, from: req.from, to: req.to, format: 'xlsx' });
   if (req.userIds?.length) query.set('userIds', req.userIds.join(','));
 
   let res: Response;
   try {
     res = await fetch(`${getFeatureUsageReportBaseUrl()}/v1/reports/feature-usage?${query}`, {
-      headers: { 'X-Api-Key': getFeatureUsageReportApiKey() },
+      headers: {
+        'X-Api-Key': getFeatureUsageReportApiKey(),
+        Authorization: `Bearer ${token}`,
+        lob: getTenantId() || req.tenant,
+        'x-saleshub-env': getBuildEnv(),
+      },
     });
   } catch {
     throw new Error('Could not reach the report service. Check your connection and try again.');
@@ -47,6 +71,7 @@ export async function downloadFeatureUsageReport(req: FeatureUsageReportRequest)
     } catch {
       /* non-JSON error body — keep the status message */
     }
+    if (res.status === 401) throw new NotAuthenticatedError(message);
     throw new Error(message);
   }
 

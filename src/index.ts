@@ -1,7 +1,7 @@
 // ─── Main component ────────────────────────────────────────────────────────────
 export { ReportsApp, FEATURE_USAGE_REPORT_ID } from './ReportsApp';
 export { FeatureUsageReport } from './screens/FeatureUsageReport';
-export { downloadFeatureUsageReport } from './services/featureUsageReportService';
+export { downloadFeatureUsageReport, NotAuthenticatedError } from './services/featureUsageReportService';
 export type { FeatureUsageReportRequest } from './services/featureUsageReportService';
 
 // ─── Public types (host app needs these to construct reportCards config) ────────
