@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { getTenantId } from '../config/auth';
 import {
   FEATURE_USAGE_MAX_RANGE_DAYS,
+  NotAuthenticatedError,
   downloadFeatureUsageReport,
   istToday,
 } from '../services/featureUsageReportService';
@@ -26,6 +27,7 @@ export function FeatureUsageReport({ onBack }: FeatureUsageReportProps) {
   const [userIds, setUserIds] = useState('');
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState('');
+  const [notAuthenticated, setNotAuthenticated] = useState(false);
   const [done, setDone] = useState('');
 
   const days = Math.round((Date.parse(to) - Date.parse(from)) / DAY_MS) + 1;
@@ -42,6 +44,7 @@ export function FeatureUsageReport({ onBack }: FeatureUsageReportProps) {
     if (rangeError || !tenant) return;
     setDownloading(true);
     setError('');
+    setNotAuthenticated(false);
     setDone('');
     try {
       const file = await downloadFeatureUsageReport({
@@ -52,6 +55,7 @@ export function FeatureUsageReport({ onBack }: FeatureUsageReportProps) {
       });
       setDone(`Downloaded ${file}`);
     } catch (err) {
+      setNotAuthenticated(err instanceof NotAuthenticatedError);
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setDownloading(false);
@@ -108,7 +112,12 @@ export function FeatureUsageReport({ onBack }: FeatureUsageReportProps) {
         </label>
 
         {rangeError && <div className="sc-fu-alert warning">{rangeError}</div>}
-        {error && <div className="sc-fu-alert error">{error}</div>}
+        {error && notAuthenticated && (
+          <div className="sc-fu-alert error">
+            <b>Not authenticated.</b> {error.replace(/^Not authenticated[:.]?\s*/i, '')}
+          </div>
+        )}
+        {error && !notAuthenticated && <div className="sc-fu-alert error">{error}</div>}
         {done && <div className="sc-fu-alert success">{done}</div>}
 
         <div>
