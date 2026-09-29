@@ -109,6 +109,11 @@ export interface DownloadParams {
   geoDrillDownPath?: DrillDownPathItem[];
   pf?: string;
   optionsMap?: Record<string, { label: string; value: string }[]>;
+  /**
+   * Display name of the selected distributor (without the "(code)" suffix), used
+   * to fill the {distName} token in a report's downloadFilenameTemplate.
+   */
+  distributorName?: string;
 }
 
 export interface DistributorFeature {

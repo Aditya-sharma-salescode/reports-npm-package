@@ -92,6 +92,22 @@ export interface newReportConfig {
   sendParentHeader?: boolean;
   /** Value for the `x-parent-tenant-id` header, e.g. "digivyapar". Only used when sendParentHeader is true. */
   parentHeaderValue?: string;
+  /**
+   * When set, the download request appends `?filename=<name>` so the backend
+   * names the generated file (and the browser saves it under the same name).
+   * The template is filled in at download time from these tokens:
+   *   {month}    → full month name of the selected period, e.g. "September"
+   *   {monthNum} → 2-digit month number, e.g. "09"
+   *   {year}     → 4-digit year, e.g. "2026"
+   *   {distId}   → selected distributor code, e.g. "AUT_DIST_CCD"
+   *   {distName} → selected distributor display name, e.g. "AUT Outlet Dual"
+   * Unknown tokens resolve to empty. The chosen format's extension is appended
+   * automatically, so the template should NOT include it.
+   *   "GSTR1_{month}_{distId}"           → "GSTR1_September_AUT_DIST_CCD.xlsx"
+   *   "GSTR2_{month}_{distId}"           → "GSTR2_September_AUT_DIST_CCD.xlsx"
+   *   "GSTR3B_{distName}_{month}_{year}" → "GSTR3B_AUT Outlet Dual_September_2026.xlsx"
+   */
+  downloadFilenameTemplate?: string;
 }
 
 export interface CustomPayloadEntry {
@@ -137,6 +153,43 @@ export function applyCustomPayloadCommaSeparated(
     }
   }
   return target;
+}
+
+// ─── Download filename template ────────────────────────────────────────────────
+
+export interface DownloadFilenameTokens {
+  /** Full month name, e.g. "September" */
+  month?: string;
+  /** 2-digit month number, e.g. "09" */
+  monthNum?: string;
+  /** 4-digit year, e.g. "2026" */
+  year?: string;
+  /** Selected distributor code, e.g. "AUT_DIST_CCD" */
+  distId?: string;
+  /** Selected distributor display name, e.g. "AUT Outlet Dual" */
+  distName?: string;
+}
+
+/**
+ * Fills a `downloadFilenameTemplate` with the given tokens and appends the
+ * format extension (e.g. ".xlsx"). Unknown tokens resolve to empty strings.
+ * Returns null when the template is empty/absent. The result is NOT URL-encoded
+ * — callers append it to `?filename=` and must encode it there.
+ */
+export function buildDownloadFilename(
+  template: string | undefined,
+  tokens: DownloadFilenameTokens,
+  format: string
+): string | null {
+  if (!template) return null;
+  const filled = template
+    .replace(/\{month\}/g, tokens.month ?? '')
+    .replace(/\{monthNum\}/g, tokens.monthNum ?? '')
+    .replace(/\{year\}/g, tokens.year ?? '')
+    .replace(/\{distId\}/g, tokens.distId ?? '')
+    .replace(/\{distName\}/g, tokens.distName ?? '');
+  const ext = format ? format.toLowerCase() : '';
+  return ext ? `${filled}.${ext}` : filled;
 }
 
 // ─── Filter & column configuration ────────────────────────────────────────────

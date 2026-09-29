@@ -1005,6 +1005,17 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
         }
       }
 
+      // Resolve the selected distributor's display name for the {distName} token
+      // in a report's downloadFilenameTemplate. The dropdown stores options as
+      // "Name (code)"; strip the trailing "(code)" to get just the name.
+      const distKey = reportConfig.newDistFilter ? 'distributor_code' : distributorFieldKey;
+      const selectedDistCode = distKey ? cleanFilters[distKey]?.[0] : undefined;
+      let distributorName: string | undefined;
+      if (distKey && selectedDistCode) {
+        const opt = optionsMap[distKey]?.find(o => o.value === selectedDistCode);
+        if (opt) distributorName = opt.label.replace(/\s*\([^)]*\)\s*$/, '').trim();
+      }
+
       await downloadReport({
         selectedReport: reportConfig,
         filters: cleanFilters,
@@ -1016,6 +1027,7 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
         customFilters: customFilters.map(f => f.alias),
         salesDrillDownPath,
         geoDrillDownPath,
+        distributorName,
       });
       showNotif('Downloaded successfully!', 'success');
     } catch (err) {
