@@ -9,6 +9,7 @@ import { CompactCheckboxDropdown } from '../components/CompactCheckboxDropdown';
 import { useHierarchyLoaders } from '../hooks/useHierarchyLoaders';
 import { loadCustomFiltersForReport, isNewDistFilter } from '../services/mdmCustomFiltersService';
 import { fetchFilterValues, fetchLocationUsers, fetchChildrenUsers } from '../services/reportsDataService';
+import { defaultDistributorScope } from '../utils/distributorScope';
 import { fetchDistributorMeta, filterDistributorsBySelections, fetchNewDistributorOptions } from '../services/distributorMetaService';
 import { downloadReport, buildLocationFilters, buildUserFilters } from '../services/mdmReportsDownloadService';
 import type { newReportConfig } from '../types/mdmReportsUtils';
@@ -844,8 +845,16 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
         ? { locationFilters: locationFilters.length > 0 ? locationFilters : undefined, userFilters: userFilters.length > 0 ? userFilters : undefined }
         : undefined;
 
-      const additionalFilters: Record<string, string[]> | undefined = distributorCodes.length > 0
-        ? { distributor_code: distributorCodes }
+      // A distributor-view report defaults to the session's own distributor when
+      // the user has picked none, matching the download path — otherwise these
+      // dropdowns offer values drawn from every distributor while the report
+      // that eventually runs is scoped to one.
+      const scopedCodes = distributorCodes.length > 0
+        ? distributorCodes
+        : defaultDistributorScope(reportConfig);
+
+      const additionalFilters: Record<string, string[]> | undefined = scopedCodes.length > 0
+        ? { distributor_code: scopedCodes }
         : undefined;
 
       // Other selected custom filters constrain the values returned for `key`.

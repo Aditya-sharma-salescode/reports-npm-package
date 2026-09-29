@@ -8,6 +8,7 @@ import {
 } from './reportsDataService';
 import { hostGet, hostPost, fetchAndDownloadReport } from './networkService';
 import { getAuthContext, getTenantId } from '../config/auth';
+import { defaultDistributorScope } from '../utils/distributorScope';
 import { applyCustomPayloadToMap } from '../types/mdmReportsUtils';
 import type { DownloadParams, DrillDownPathItem } from './types';
 
@@ -115,7 +116,6 @@ export function buildUserFilters(
 
 async function collectDistributorCodes(params: DownloadParams): Promise<string[]> {
   const { selectedReport, filters, primaryFilter, salesDrillDownPath, geoDrillDownPath } = params;
-  const { loginId } = getAuthContext();
 
   // newDistFilter: the single-select Distributor dropdown is an explicit user
   // choice, so it wins over any hierarchy-derived codes regardless of
@@ -125,13 +125,12 @@ async function collectDistributorCodes(params: DownloadParams): Promise<string[]
     if (picked.length > 0 && picked[0] !== '') return picked;
   }
 
-  // No primary filter set — fall back to direct distributor selection or logged-in user
+  // No primary filter set — fall back to direct distributor selection or the
+  // session's own default scope (shared with the preview and filter-value paths).
   if (!primaryFilter) {
     const directCodes = filters['distributor_code'] ?? [];
     if (directCodes.length > 0) return directCodes;
-    // Skip loginId fallback when disableValidation is true — filters map will only carry custom filter values
-    if (selectedReport.isDistributorView && loginId && selectedReport.disableValidation !== true) return [loginId];
-    return [];
+    return defaultDistributorScope(selectedReport);
   }
 
   if (primaryFilter === 'distributor') {

@@ -14,12 +14,26 @@ function getCookie(name: string): string {
 export function syncAuthFromCookies(): void {
   const accountId = getCookie('ACCOUNT_ID');
   const authToken = getCookie('SALESHUB_TOKEN');
+  const loginId = getCookie('LOGIN_ID');
 
   if (accountId) {
     localStorage.setItem('accountId', accountId);
   }
   if (authToken) {
     localStorage.setItem('authToken', authToken);
+  }
+  if (loginId) {
+    // `authContext` is the shape the rest of the app reads (getAuthContext);
+    // merge rather than replace so a host that wrote a richer context — with a
+    // designation or assignedHierarchy — keeps it.
+    let ctx: { user?: Record<string, unknown> } = {};
+    try {
+      ctx = JSON.parse(localStorage.getItem('authContext') || '{}');
+    } catch {
+      ctx = {};
+    }
+    const user = { ...(ctx.user ?? {}), loginId, email: (ctx.user?.email as string) || loginId };
+    localStorage.setItem('authContext', JSON.stringify({ ...ctx, user }));
   }
 }
 
@@ -107,12 +121,16 @@ export function getAuthContext(): { loginId: string; email: string } {
   try {
     const raw = localStorage.getItem('authContext') || '{}';
     const ctx = JSON.parse(raw);
+    // The cookie is the fallback for a host that publishes the session as
+    // cookies without ever writing this origin's localStorage.
+    const cookieLoginId = getCookie('LOGIN_ID').trim();
     return {
-      loginId: ctx?.user?.loginId || '',
-      email: ctx?.user?.email || '',
+      loginId: ctx?.user?.loginId || cookieLoginId,
+      email: ctx?.user?.email || cookieLoginId,
     };
   } catch {
-    return { loginId: '', email: '' };
+    const cookieLoginId = getCookie('LOGIN_ID').trim();
+    return { loginId: cookieLoginId, email: cookieLoginId };
   }
 }
 
