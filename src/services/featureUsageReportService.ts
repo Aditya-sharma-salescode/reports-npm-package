@@ -44,9 +44,9 @@ export class NotAuthenticatedError extends Error {
  */
 export async function downloadFeatureUsageReport(req: FeatureUsageReportRequest): Promise<string> {
   const token = getAccessToken().replace(/^Bearer\s+/i, '').trim();
-  // SalesHub session check is disabled on the API for now; the token is still
-  // sent when available. Re-enable together with the API check:
-  // if (!token) throw new NotAuthenticatedError('Not authenticated: no SalesHub session found. Please sign in again.');
+  // No early "not signed in" here: when the portal's SALESHUB_TOKEN cookie is
+  // HttpOnly the token can't be read, but the browser still sends the cookie
+  // (credentials: 'include') and the API validates it. The API is the check.
 
   const query = new URLSearchParams({ tenant: req.tenant, from: req.from, to: req.to, format: 'xlsx' });
   if (req.userIds?.length) query.set('userIds', req.userIds.join(','));
@@ -54,6 +54,9 @@ export async function downloadFeatureUsageReport(req: FeatureUsageReportRequest)
   let res: Response;
   try {
     res = await fetch(`${getFeatureUsageReportBaseUrl()}/v1/reports/feature-usage?${query}`, {
+      // Send the portal's cookies (SALESHUB_TOKEN / ACCOUNT_ID) — same as the
+      // package's other downloads; they reach the API on *.salescodeai.com.
+      credentials: 'include',
       headers: {
         'X-Api-Key': getFeatureUsageReportApiKey(),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),

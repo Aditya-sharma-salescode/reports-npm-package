@@ -56,7 +56,24 @@ workflows:
               exit 1
           esac
 
-          aws s3 sync dist-app/ s3://${BUCKET}/
+          # Hashed build assets (dist-app/assets/*) never change content under
+          # the same name, so browsers may cache them forever.
+          aws s3 sync dist-app/assets/ s3://${BUCKET}/assets/ \
+            --cache-control "public, max-age=31536000, immutable"
+
+          # index.html and any other unhashed files must always revalidate.
+          # Without this, browsers heuristically cache index.html — and since
+          # Chrome partitions cache by top-level site, the copy embedded in the
+          # parent portal iframe stays stale even after CloudFront invalidation.
+          aws s3 sync dist-app/ s3://${BUCKET}/ --exclude "assets/*" \
+            --cache-control "no-cache, must-revalidate"
+
+          # Force metadata refresh on index.html even if its content is unchanged
+          # (s3 sync skips unchanged files, which would keep old headers).
+          aws s3 cp dist-app/index.html s3://${BUCKET}/index.html \
+            --cache-control "no-cache, must-revalidate" \
+            --content-type "text/html; charset=utf-8" \
+            --metadata-directive REPLACE
 
       - name: Invalidate CloudFront Cache
         script: |
