@@ -30,5 +30,5 @@ export {
 
 // ─── Config helpers (env detection, URL resolvers) ──────────────────────────────
 export { getEnv, getDatastreamBaseUrl, setDatastreamBaseUrl, getHostBaseUrl, setHostBaseUrl, getReportBaseUrl, setReportBaseUrl, getFeatureUsageReportBaseUrl, setFeatureUsageReportBaseUrl } from './config/urls';
-export { fetchReportConfigs } from './services/configService';
-export { getAccessToken, getTenantId, getAuthContext, syncAuthFromCookies } from './config/auth';
+export { fetchReportConfigs, getReportConfigDomainType, DISTRIBUTOR_REPORT_CONFIG, ADMIN_REPORT_CONFIG } from './services/configService';
+export { getAccessToken, getTenantId, getOrgType, getAuthContext, syncAuthFromCookies } from './config/auth';

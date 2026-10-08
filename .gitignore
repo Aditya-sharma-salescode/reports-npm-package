@@ -4,3 +4,4 @@ dist-app/
 *.local
 .DS_Store
 .npmrc
+.env

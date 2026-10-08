@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { getMarketplaceBaseUrl } from '../config/urls';
-import { getTenantId } from '../config/auth';
+import { getOrgType, getTenantId } from '../config/auth';
 import type { newReportConfig } from '../types/mdmReportsUtils';
 
 interface MarketplaceFeature {
@@ -31,9 +31,36 @@ interface MarketplaceResponse {
  */
 const CONFIG_TENANT_SUFFIX = (import.meta.env.VITE_CONFIG_TENANT_SUFFIX ?? '').trim();
 
+/** Org types that read the distributor report set. */
+const DISTRIBUTOR_ORG_TYPES = ['distributor', 'supplier'];
+
+export const DISTRIBUTOR_REPORT_CONFIG = 'distributor_report_configuration';
+export const ADMIN_REPORT_CONFIG = 'admin_report_configuration';
+
+/**
+ * Marketplace `domainType` holding the report configs for a given org type.
+ *
+ * Reports are configured per org type, so a distributor and an admin user on the
+ * same tenant get different report sets out of the same marketplace response.
+ * Distributor-tier sessions (DISTRIBUTOR, and SUPPLIER which is the same tier
+ * under another name) read the distributor set; everything else, including a
+ * session with no org type at all, reads the admin set.
+ *
+ * The mapping is an explicit allowlist rather than a key derived from the org
+ * type, so a new or unexpected org type lands on the admin set instead of
+ * silently requesting a bucket the marketplace has never heard of.
+ */
+export function getReportConfigDomainType(orgType = getOrgType()): string {
+  const normalized = orgType.trim().toLowerCase();
+  return DISTRIBUTOR_ORG_TYPES.includes(normalized)
+    ? DISTRIBUTOR_REPORT_CONFIG
+    : ADMIN_REPORT_CONFIG;
+}
+
 /**
  * Fetches report configurations from the marketplace config API.
- * Looks for domainName='clientconfig' and domainType='distributor_report_configuration'.
+ * Looks for domainName='clientconfig' and the domainType matching this
+ * session's org type (see `getReportConfigDomainType`).
  * domainValues is directly the array of report config objects.
  */
 export async function fetchReportConfigs(): Promise<newReportConfig[]> {
@@ -50,8 +77,9 @@ export async function fetchReportConfigs(): Promise<newReportConfig[]> {
   });
 
   const features = response.data?.features ?? [];
+  const domainType = getReportConfigDomainType();
   const configFeature = features.find(
-    f => f.domainName === 'clientconfig' && f.domainType === 'distributor_report_configuration'
+    f => f.domainName === 'clientconfig' && f.domainType === domainType
   );
 
   if (!configFeature?.domainValues?.length) return [];

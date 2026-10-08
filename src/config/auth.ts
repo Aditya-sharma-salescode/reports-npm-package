@@ -14,12 +14,26 @@ function getCookie(name: string): string {
 export function syncAuthFromCookies(): void {
   const accountId = getCookie('ACCOUNT_ID');
   const authToken = getCookie('SALESHUB_TOKEN');
+  const loginId = getCookie('LOGIN_ID');
 
   if (accountId) {
     localStorage.setItem('accountId', accountId);
   }
   if (authToken) {
     localStorage.setItem('authToken', authToken);
+  }
+  if (loginId) {
+    // `authContext` is the shape the rest of the app reads (getAuthContext);
+    // merge rather than replace so a host that wrote a richer context — with a
+    // designation or assignedHierarchy — keeps it.
+    let ctx: { user?: Record<string, unknown> } = {};
+    try {
+      ctx = JSON.parse(localStorage.getItem('authContext') || '{}');
+    } catch {
+      ctx = {};
+    }
+    const user = { ...(ctx.user ?? {}), loginId, email: (ctx.user?.email as string) || loginId };
+    localStorage.setItem('authContext', JSON.stringify({ ...ctx, user }));
   }
 }
 
@@ -29,6 +43,58 @@ export function getAccessToken(): string {
 
 export function getTenantId(): string {
   return localStorage.getItem('accountId') || '';
+}
+
+/** Decodes a JWT payload without verifying it. Returns null on any malformed input. */
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const json = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join(''),
+    );
+    return JSON.parse(json) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The signed-in user's org type (e.g. "DISTRIBUTOR"), or '' when the session
+ * has none. Checked in order of trustworthiness:
+ *   1. `org_type` inside the access token — signed by the backend, and present
+ *      whether the session was started by this app or a host portal.
+ *   2. `authContext` / `salescodeaiAuth` in localStorage — what host apps write.
+ *   3. The `ORG_TYPE` cookie, for portals that publish it alongside ACCOUNT_ID.
+ *
+ * An absent org type is meaningful, not an error: it identifies an admin-tier
+ * session (see `getReportConfigDomainType`).
+ */
+export function getOrgType(): string {
+  const claims = decodeJwtPayload(getAccessToken());
+  const fromToken = typeof claims?.org_type === 'string' ? claims.org_type : '';
+  if (fromToken) return fromToken.trim();
+
+  for (const key of ['authContext', 'salescodeaiAuth']) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw) as {
+        orgType?: unknown;
+        user?: { orgType?: unknown };
+      };
+      const value = parsed?.orgType ?? parsed?.user?.orgType;
+      if (typeof value === 'string' && value.trim()) return value.trim();
+    } catch {
+      /* malformed entry — fall through to the next source */
+    }
+  }
+
+  return getCookie('ORG_TYPE').trim();
 }
 
 /**
@@ -55,12 +121,16 @@ export function getAuthContext(): { loginId: string; email: string } {
   try {
     const raw = localStorage.getItem('authContext') || '{}';
     const ctx = JSON.parse(raw);
+    // The cookie is the fallback for a host that publishes the session as
+    // cookies without ever writing this origin's localStorage.
+    const cookieLoginId = getCookie('LOGIN_ID').trim();
     return {
-      loginId: ctx?.user?.loginId || '',
-      email: ctx?.user?.email || '',
+      loginId: ctx?.user?.loginId || cookieLoginId,
+      email: ctx?.user?.email || cookieLoginId,
     };
   } catch {
-    return { loginId: '', email: '' };
+    const cookieLoginId = getCookie('LOGIN_ID').trim();
+    return { loginId: cookieLoginId, email: cookieLoginId };
   }
 }
 
