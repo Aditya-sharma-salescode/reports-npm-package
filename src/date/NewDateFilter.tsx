@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import dayjs, { type Dayjs } from 'dayjs';
+import { getMaxDateFromCustomRange } from '../types/mdmReportsUtils';
 import '../screens/MdmReportsFilter.css';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -17,13 +18,16 @@ interface CalendarProps {
   onNext?: () => void;
   disablePrev?: boolean;
   disableNext?: boolean;
+  /** Days outside [minDate, maxDate] render disabled and ignore clicks. */
+  minDate?: Date | null;
+  maxDate?: Date | null;
 }
 
 function isSameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
-function Calendar({ year, month, startDate, endDate, hoverDate, onDayClick, onDayHover, onPrev, onNext, disablePrev, disableNext }: CalendarProps) {
+function Calendar({ year, month, startDate, endDate, hoverDate, onDayClick, onDayHover, onPrev, onNext, disablePrev, disableNext, minDate, maxDate }: CalendarProps) {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstDow = new Date(year, month, 1).getDay();
   const today = new Date();
@@ -43,7 +47,12 @@ function Calendar({ year, month, startDate, endDate, hoverDate, onDayClick, onDa
     const isInRange = startDate && effectiveEnd && date > startDate && date < effectiveEnd;
     const isToday = isSameDay(date, today);
 
+    const isOutOfBounds =
+      (minDate ? date < new Date(minDate.getFullYear(), minDate.getMonth(), minDate.getDate()) : false) ||
+      (maxDate ? date > new Date(maxDate.getFullYear(), maxDate.getMonth(), maxDate.getDate()) : false);
+
     let cls = 'sc-cal-day';
+    if (isOutOfBounds) cls += ' disabled';
     if (isStart) {
       cls += ' selected-start';
       if (effectiveEnd && !isSameDay(startDate!, effectiveEnd)) cls += ' has-range-end';
@@ -59,8 +68,8 @@ function Calendar({ year, month, startDate, endDate, hoverDate, onDayClick, onDa
       <div
         key={d}
         className={cls}
-        onClick={() => onDayClick(date)}
-        onMouseEnter={() => onDayHover(date)}
+        onClick={() => { if (!isOutOfBounds) onDayClick(date); }}
+        onMouseEnter={() => onDayHover(isOutOfBounds ? null : date)}
         onMouseLeave={() => onDayHover(null)}
       >
         {d}
@@ -92,10 +101,11 @@ interface NewDateFilterProps {
   toDate: Dayjs;
   onFromChange: (d: Dayjs) => void;
   onToChange: (d: Dayjs) => void;
+  /** Max span a custom pick may cover, e.g. "1 day" | "1 week". Inclusive. */
   dateRangeAllowed?: string;
 }
 
-export function NewDateFilter({ fromDate, toDate, onFromChange, onToChange }: NewDateFilterProps) {
+export function NewDateFilter({ fromDate, toDate, onFromChange, onToChange, dateRangeAllowed }: NewDateFilterProps) {
   const [open, setOpen] = useState(false);
   const [activePreset, setActivePreset] = useState<string>('Custom Date Filter');
   const [hoverDate, setHoverDate] = useState<Date | null>(null);
@@ -104,6 +114,17 @@ export function NewDateFilter({ fromDate, toDate, onFromChange, onToChange }: Ne
   const [rightYear, setRightYear] = useState(toDate.year());
   const [rightMonth, setRightMonth] = useState(toDate.month());
   const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // dateRangeAllowed caps how wide a custom selection may be, measured from the
+  // chosen start date and inclusive of it — so "1 day" pins the range to a single
+  // day. Absent/unparseable config leaves the picker unrestricted, exactly as before.
+  const spanCap = dateRangeAllowed?.trim() || '';
+  const maxToDate = spanCap && fromDate
+    ? getMaxDateFromCustomRange(spanCap, fromDate.toDate())
+    : null;
+  const isSingleDay = Boolean(
+    maxToDate && dayjs(maxToDate).isSame(fromDate, 'day')
+  );
 
   // Disable the left calendar's next arrow only when it would navigate past the
   // current (real) month — mirrors how MUI's StaticDatePicker handles maxDate/disableFuture.
@@ -146,7 +167,17 @@ export function NewDateFilter({ fromDate, toDate, onFromChange, onToChange }: Ne
   function handleStartDayClick(date: Date) {
     const d = dayjs(date);
     onFromChange(d.startOf('day'));
-    if (d.isAfter(toDate)) {
+
+    if (spanCap) {
+      // Moving the start can leave the end outside the allowed span — pull it in.
+      const cap = getMaxDateFromCustomRange(spanCap, d.toDate());
+      const capped = cap ? dayjs(cap) : null;
+      if (capped && (toDate.isAfter(capped, 'day') || d.isAfter(toDate, 'day'))) {
+        onToChange(capped.endOf('day'));
+      } else if (d.isAfter(toDate)) {
+        onToChange(d.endOf('day'));
+      }
+    } else if (d.isAfter(toDate)) {
       onToChange(d.endOf('day'));
     }
     setActivePreset('Custom Date Filter');
@@ -154,10 +185,20 @@ export function NewDateFilter({ fromDate, toDate, onFromChange, onToChange }: Ne
 
   function handleEndDayClick(date: Date) {
     const d = dayjs(date);
+    // With a span cap the end can't exceed start + cap, and never precedes start.
+    if (spanCap && maxToDate && d.isAfter(dayjs(maxToDate), 'day')) return;
     onToChange(d.endOf('day'));
     if (d.isBefore(fromDate)) {
       onFromChange(d.startOf('day'));
     }
+    setActivePreset('Custom Date Filter');
+  }
+
+  // Single-day mode: one click pins both ends to the same day.
+  function handleSingleDayClick(date: Date) {
+    const d = dayjs(date);
+    onFromChange(d.startOf('day'));
+    onToChange(d.endOf('day'));
     setActivePreset('Custom Date Filter');
   }
 
@@ -177,7 +218,9 @@ export function NewDateFilter({ fromDate, toDate, onFromChange, onToChange }: Ne
     { label: 'Custom Date Filter', from: fromDate, to: toDate },
   ];
 
-  const displayText = `${fromDate.format('DD MMM YYYY')} - ${toDate.format('DD MMM YYYY')}`;
+  const displayText = isSingleDay
+    ? fromDate.format('DD MMM YYYY')
+    : `${fromDate.format('DD MMM YYYY')} - ${toDate.format('DD MMM YYYY')}`;
 
   return (
     <div className="sc-date-range-wrapper" ref={wrapperRef}>
@@ -191,7 +234,8 @@ export function NewDateFilter({ fromDate, toDate, onFromChange, onToChange }: Ne
       {open && (
         <div className="sc-datepicker-popup">
           <div className="sc-datepicker-presets">
-            {presets.map(p => (
+            {/* Last 7 days / Last 3 months would exceed a configured span cap. */}
+            {(spanCap ? presets.filter(p => p.label === 'Custom Date Filter') : presets).map(p => (
               <div
                 key={p.label}
                 className={`sc-preset-item${activePreset === p.label ? ' active' : ''}`}
@@ -215,24 +259,28 @@ export function NewDateFilter({ fromDate, toDate, onFromChange, onToChange }: Ne
               startDate={fromDate.toDate()}
               endDate={toDate.toDate()}
               hoverDate={hoverDate}
-              onDayClick={handleStartDayClick}
+              onDayClick={isSingleDay ? handleSingleDayClick : handleStartDayClick}
               onDayHover={setHoverDate}
               onPrev={prevMonth}
               onNext={nextMonth}
               disableNext={disableLeftNext}
             />
-            <Calendar
-              year={rightYear}
-              month={rightMonth}
-              startDate={fromDate.toDate()}
-              endDate={toDate.toDate()}
-              hoverDate={hoverDate}
-              onDayClick={handleEndDayClick}
-              onDayHover={setHoverDate}
-              onPrev={prevRightMonth}
-              onNext={nextRightMonth}
-              disableNext={disableRightNext}
-            />
+            {!isSingleDay && (
+              <Calendar
+                year={rightYear}
+                month={rightMonth}
+                startDate={fromDate.toDate()}
+                endDate={toDate.toDate()}
+                hoverDate={hoverDate}
+                onDayClick={handleEndDayClick}
+                onDayHover={setHoverDate}
+                onPrev={prevRightMonth}
+                onNext={nextRightMonth}
+                disableNext={disableRightNext}
+                minDate={fromDate.toDate()}
+                maxDate={maxToDate}
+              />
+            )}
           </div>
         </div>
       )}

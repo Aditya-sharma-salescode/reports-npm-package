@@ -514,7 +514,12 @@
   transition: background 0.1s;
 }
 .sc-cal-day.empty { cursor: default; }
-.sc-cal-day:not(.empty):hover { background: #e8f5f2; }
+.sc-cal-day.disabled {
+  color: #ccc;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.sc-cal-day:not(.empty):not(.disabled):hover { background: #e8f5f2; }
 .sc-cal-day.today { font-weight: 700; }
 
 .sc-cal-day.selected-start,
