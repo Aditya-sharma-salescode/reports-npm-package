@@ -1,6 +1,8 @@
 workflows:
   reports-ui:
     name: Reports UI Deployment
+    # Web-only build: Linux avoids the Mac (Xcode) machine queue
+    instance_type: linux_x2
 
     environment:
       node: 21
