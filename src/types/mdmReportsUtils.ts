@@ -8,6 +8,13 @@ export interface newReportConfig {
   type?: string;
   getAPI: string;
   reportName: string;
+  /**
+   * Download several reports in one request. When set (non-empty), the snapshot
+   * and live download payloads send `reportNames: [...]` instead of the single
+   * `reportName` / `configName`, and the Preview button is hidden — a preview
+   * can only render one report's rows.
+   */
+  reportNames?: string[];
   description: string;
   templateUrl: string;
   filterConfiguration?: ReportTableConfiguration;

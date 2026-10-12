@@ -25,7 +25,10 @@ interface MdmReportsNewFilterProps {
 }
 
 function isNoPreviewReport(config: newReportConfig) {
-  return config.isLiveReport || config.isGSTRReport || config.isPDFReport || config.customDownload;
+  // A multi-report config downloads several datasets at once, so there is no
+  // single result set to preview.
+  const isMultiReport = (config.reportNames?.filter(n => n && n.trim()).length ?? 0) > 0;
+  return config.isLiveReport || config.isGSTRReport || config.isPDFReport || config.customDownload || isMultiReport;
 }
 
 type DistributorSource = 'geographical' | 'sales';
@@ -1092,6 +1095,7 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
     reportConfig.isLiveReport ? 'Live reports cannot be previewed. Kindly download the report to continue.'
     : reportConfig.isPDFReport ? 'PDF reports cannot be previewed. Kindly download the report to continue.'
     : reportConfig.isGSTRReport ? 'GSTR reports cannot be previewed. Kindly download the report to continue.'
+    : (reportConfig.reportNames?.length ?? 0) > 0 ? 'Multi-report downloads cannot be previewed. Kindly download the reports to continue.'
     : 'This report cannot be previewed. Kindly download the report to continue.';
 
   return (

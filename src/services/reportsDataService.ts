@@ -245,7 +245,10 @@ interface DistributorFilterPayload {
 }
 
 export interface LiveReportPayload {
-  configName: string;
+  /** Omitted when `reportNames` carries a multi-report request. */
+  configName?: string;
+  /** Multi-report download; replaces `configName` when present. */
+  reportNames?: string[];
   dateRange?: { startDate: string; endDate: string };
   period?: string;
   year?: string;
@@ -257,7 +260,10 @@ export interface LiveReportPayload {
 }
 
 export interface SnapshotReportPayload {
-  reportName: string;
+  /** Omitted when `reportNames` carries a multi-report request. */
+  reportName?: string;
+  /** Multi-report download; replaces `reportName` when present. */
+  reportNames?: string[];
   filters?: { map?: Record<string, string[]>; pf?: string };
   dateRange?: { startDate: string; endDate: string };
   format?: string;

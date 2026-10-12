@@ -305,10 +305,17 @@ export async function downloadReport(params: DownloadParams): Promise<void> {
         }
       : undefined;
 
+  // A report can name several datasets to pull in one request. When it does the
+  // payload carries `reportNames` in place of the single-report key.
+  const reportNames = selectedReport.reportNames?.filter(n => n && n.trim()) ?? [];
+  const isMultiReport = reportNames.length > 0;
+
   // ── Live report ──────────────────────────────────────────────────────────────
   if (selectedReport.isLiveReport) {
     const livePayload = {
-      configName: selectedReport.reportName,
+      ...(isMultiReport
+        ? { reportNames }
+        : { configName: selectedReport.reportName }),
       dateRange:
         startDate && endDate && dateRangeType === 'daterange'
           ? { startDate, endDate }
@@ -388,7 +395,9 @@ export async function downloadReport(params: DownloadParams): Promise<void> {
   const hasFiltersMap =
     effectiveFiltersMap !== undefined && Object.keys(effectiveFiltersMap).length > 0;
   const snapshotPayload = {
-    reportName: selectedReport.reportName,
+    ...(isMultiReport
+      ? { reportNames }
+      : { reportName: selectedReport.reportName }),
     ...(hasFiltersMap ? { filters: { map: effectiveFiltersMap, ...(params.pf ? { pf: params.pf } : {}) } } : {}),
     ...(snapshotStartDate && snapshotEndDate
       ? { dateRange: { startDate: snapshotStartDate, endDate: snapshotEndDate } }
