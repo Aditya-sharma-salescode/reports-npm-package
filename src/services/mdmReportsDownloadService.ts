@@ -5,10 +5,12 @@ import {
   pollAsyncReport,
   fetchLocationUsers,
   fetchChildrenUsers,
+  appendFilename,
 } from './reportsDataService';
 import { hostGet, hostPost, fetchAndDownloadReport } from './networkService';
 import { getAuthContext, getTenantId } from '../config/auth';
-import { applyCustomPayloadToMap } from '../types/mdmReportsUtils';
+import { defaultDistributorScope } from '../utils/distributorScope';
+import { applyCustomPayloadToMap, buildDownloadFilename } from '../types/mdmReportsUtils';
 import type { DownloadParams, DrillDownPathItem } from './types';
 
 // ─── Date conversion helpers ───────────────────────────────────────────────────
@@ -47,11 +49,11 @@ function convertDayjsEndDateToUtcIsoString(date: Dayjs): string {
 
 // ─── Browser download trigger ──────────────────────────────────────────────────
 
-function triggerBrowserDownload(blob: Blob, reportName: string, format: string) {
+function triggerBrowserDownload(blob: Blob, reportName: string, format: string, filename?: string) {
   const url = window.URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `${reportName}_${dayjs().format('YYYY-MM-DD')}.${format.toLowerCase()}`;
+  link.download = filename ?? `${reportName}_${dayjs().format('YYYY-MM-DD')}.${format.toLowerCase()}`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -115,7 +117,6 @@ export function buildUserFilters(
 
 async function collectDistributorCodes(params: DownloadParams): Promise<string[]> {
   const { selectedReport, filters, primaryFilter, salesDrillDownPath, geoDrillDownPath } = params;
-  const { loginId } = getAuthContext();
 
   // newDistFilter: the single-select Distributor dropdown is an explicit user
   // choice, so it wins over any hierarchy-derived codes regardless of
@@ -125,13 +126,12 @@ async function collectDistributorCodes(params: DownloadParams): Promise<string[]
     if (picked.length > 0 && picked[0] !== '') return picked;
   }
 
-  // No primary filter set — fall back to direct distributor selection or logged-in user
+  // No primary filter set — fall back to direct distributor selection or the
+  // session's own default scope (shared with the preview and filter-value paths).
   if (!primaryFilter) {
     const directCodes = filters['distributor_code'] ?? [];
     if (directCodes.length > 0) return directCodes;
-    // Skip loginId fallback when disableValidation is true — filters map will only carry custom filter values
-    if (selectedReport.isDistributorView && loginId && selectedReport.disableValidation !== true) return [loginId];
-    return [];
+    return defaultDistributorScope(selectedReport);
   }
 
   if (primaryFilter === 'distributor') {
@@ -251,6 +251,24 @@ export async function downloadReport(params: DownloadParams): Promise<void> {
   const distributorCodes = await collectDistributorCodes(params);
   const filtersMap = buildFiltersMap(params, distributorCodes);
 
+  // Config-driven download filename. Only produced when the report defines a
+  // downloadFilenameTemplate; otherwise undefined and every request keeps its
+  // existing URL / default browser filename. Month & year come from the selected
+  // period (fromDate), distId from the picked distributor code, distName from the
+  // resolved display name passed by the UI.
+  const desiredFilename =
+    buildDownloadFilename(
+      selectedReport.downloadFilenameTemplate,
+      {
+        month: fromDate.format('MMMM'),
+        monthNum: fromDate.format('MM'),
+        year: fromDate.format('YYYY'),
+        distId: distributorCodes[0],
+        distName: params.distributorName,
+      },
+      format
+    ) ?? undefined;
+
   // When isDistributorView + disableValidation, suppress filtersMap unless custom filters have values
   const hasCustomFilterValues = params.customFilters.some(
     alias => (params.filters[alias]?.length ?? 0) > 0
@@ -287,10 +305,17 @@ export async function downloadReport(params: DownloadParams): Promise<void> {
         }
       : undefined;
 
+  // A report can name several datasets to pull in one request. When it does the
+  // payload carries `reportNames` in place of the single-report key.
+  const reportNames = selectedReport.reportNames?.filter(n => n && n.trim()) ?? [];
+  const isMultiReport = reportNames.length > 0;
+
   // ── Live report ──────────────────────────────────────────────────────────────
   if (selectedReport.isLiveReport) {
     const livePayload = {
-      configName: selectedReport.reportName,
+      ...(isMultiReport
+        ? { reportNames }
+        : { configName: selectedReport.reportName }),
       dateRange:
         startDate && endDate && dateRangeType === 'daterange'
           ? { startDate, endDate }
@@ -303,9 +328,9 @@ export async function downloadReport(params: DownloadParams): Promise<void> {
       ...(selectedReport.fullAllow === true ? { fullAllow: true } : {}),
       format,
     };
-    const runId = await submitLiveReportAsync(livePayload);
+    const runId = await submitLiveReportAsync(livePayload, desiredFilename);
     const blob = await pollAsyncReport(runId);
-    triggerBrowserDownload(blob, selectedReport.reportName, format);
+    triggerBrowserDownload(blob, selectedReport.reportName, format, desiredFilename);
     return;
   }
 
@@ -321,7 +346,10 @@ export async function downloadReport(params: DownloadParams): Promise<void> {
       },
       lob,
     };
-    const response = await hostPost('/tasks/types/batchInvoicePdf/execute', payload);
+    const response = await hostPost(
+      appendFilename('/tasks/types/batchInvoicePdf/execute', desiredFilename),
+      payload
+    );
     const taskId: string = response.data?.features?.[0]?.id;
     if (!taskId) throw new Error('Task ID not returned');
     await pollTaskAndDownload(taskId);
@@ -352,7 +380,7 @@ export async function downloadReport(params: DownloadParams): Promise<void> {
       lob,
     };
     const response = await hostPost(
-      '/tasks/types/ExcelerExecutor/execute?source=portal',
+      appendFilename('/tasks/types/ExcelerExecutor/execute?source=portal', desiredFilename),
       payload
     );
     const taskId: string = response.data?.features?.[0]?.id;
@@ -367,7 +395,9 @@ export async function downloadReport(params: DownloadParams): Promise<void> {
   const hasFiltersMap =
     effectiveFiltersMap !== undefined && Object.keys(effectiveFiltersMap).length > 0;
   const snapshotPayload = {
-    reportName: selectedReport.reportName,
+    ...(isMultiReport
+      ? { reportNames }
+      : { reportName: selectedReport.reportName }),
     ...(hasFiltersMap ? { filters: { map: effectiveFiltersMap, ...(params.pf ? { pf: params.pf } : {}) } } : {}),
     ...(snapshotStartDate && snapshotEndDate
       ? { dateRange: { startDate: snapshotStartDate, endDate: snapshotEndDate } }
@@ -377,7 +407,7 @@ export async function downloadReport(params: DownloadParams): Promise<void> {
     ...(selectedReport.multiSheet === true ? { multiSheet: true } : {}),
     ...(hasFiltersMap ? {} : { fullAllow: true }),
   };
-  const runId = await submitSnapshotReportAsync(snapshotPayload);
+  const runId = await submitSnapshotReportAsync(snapshotPayload, desiredFilename);
   const blob = await pollAsyncReport(runId);
-  triggerBrowserDownload(blob, selectedReport.reportName, format);
+  triggerBrowserDownload(blob, selectedReport.reportName, format, desiredFilename);
 }

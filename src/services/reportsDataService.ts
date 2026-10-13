@@ -245,7 +245,10 @@ interface DistributorFilterPayload {
 }
 
 export interface LiveReportPayload {
-  configName: string;
+  /** Omitted when `reportNames` carries a multi-report request. */
+  configName?: string;
+  /** Multi-report download; replaces `configName` when present. */
+  reportNames?: string[];
   dateRange?: { startDate: string; endDate: string };
   period?: string;
   year?: string;
@@ -257,7 +260,10 @@ export interface LiveReportPayload {
 }
 
 export interface SnapshotReportPayload {
-  reportName: string;
+  /** Omitted when `reportNames` carries a multi-report request. */
+  reportName?: string;
+  /** Multi-report download; replaces `reportName` when present. */
+  reportNames?: string[];
   filters?: { map?: Record<string, string[]>; pf?: string };
   dateRange?: { startDate: string; endDate: string };
   format?: string;
@@ -284,14 +290,29 @@ async function submitAsync(path: string, payload: unknown): Promise<string> {
   }
 }
 
-export async function submitLiveReportAsync(params: LiveReportPayload): Promise<string> {
-  return submitAsync('/live/download?attachment=false', params);
+/**
+ * Appends `filename=<encoded>` to a request path (backend uses it to name the
+ * generated file). No-op when filename is empty. Exported so the download
+ * orchestrator can reuse it for the task-based (custom/PDF) endpoints too.
+ */
+export function appendFilename(path: string, filename?: string): string {
+  if (!filename) return path;
+  const sep = path.includes('?') ? '&' : '?';
+  return `${path}${sep}filename=${encodeURIComponent(filename)}`;
+}
+
+export async function submitLiveReportAsync(
+  params: LiveReportPayload,
+  filename?: string
+): Promise<string> {
+  return submitAsync(appendFilename('/live/download?attachment=false', filename), params);
 }
 
 export async function submitSnapshotReportAsync(
-  params: SnapshotReportPayload
+  params: SnapshotReportPayload,
+  filename?: string
 ): Promise<string> {
-  return submitAsync('/rpt-generic/download?attachment=false', params);
+  return submitAsync(appendFilename('/rpt-generic/download?attachment=false', filename), params);
 }
 
 interface PollAsyncReportOptions {

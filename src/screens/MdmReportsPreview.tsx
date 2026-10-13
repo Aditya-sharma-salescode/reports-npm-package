@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type { Dayjs } from 'dayjs';
 import { fetchReportData, fetchColumnDefinitions, type ReportSearchParams } from '../services/reportsDataService';
+import { withDefaultDistributorScope } from '../utils/distributorScope';
 import { isMergedFilterForReport, getMergedFilterSources, isSingleSelectFilterForReport } from '../services/mdmCustomFiltersService';
 import { buildLocationFilters, buildUserFilters } from '../services/mdmReportsDownloadService';
 import { CompactCheckboxDropdown } from '../components/CompactCheckboxDropdown';
@@ -147,6 +148,13 @@ export function MdmReportsPreview({
         );
 
         const hasDrillDownPaths = locationFilters.length > 0 || userFilters.length > 0;
+
+        // A distributor-view report defaults to the session's own distributor when
+        // the user has picked none, matching the download path — without it this
+        // preview rendered no rows for a report the same session could download.
+        if (!hasDrillDownPaths) {
+          withDefaultDistributorScope(apiFilters, reportConfig);
+        }
         const hasDistributorCodes = apiFilters.distributor_code?.length > 0;
 
         if (!reportConfig.disableValidation && !hasDrillDownPaths && !hasDistributorCodes) {

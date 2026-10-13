@@ -9,6 +9,7 @@ import { CompactCheckboxDropdown } from '../components/CompactCheckboxDropdown';
 import { useHierarchyLoaders } from '../hooks/useHierarchyLoaders';
 import { loadCustomFiltersForReport, isNewDistFilter } from '../services/mdmCustomFiltersService';
 import { fetchFilterValues, fetchLocationUsers, fetchChildrenUsers } from '../services/reportsDataService';
+import { defaultDistributorScope } from '../utils/distributorScope';
 import { fetchDistributorMeta, filterDistributorsBySelections, fetchNewDistributorOptions } from '../services/distributorMetaService';
 import { downloadReport, buildLocationFilters, buildUserFilters } from '../services/mdmReportsDownloadService';
 import type { newReportConfig } from '../types/mdmReportsUtils';
@@ -24,7 +25,10 @@ interface MdmReportsNewFilterProps {
 }
 
 function isNoPreviewReport(config: newReportConfig) {
-  return config.isLiveReport || config.isGSTRReport || config.isPDFReport || config.customDownload;
+  // A multi-report config downloads several datasets at once, so there is no
+  // single result set to preview.
+  const isMultiReport = (config.reportNames?.filter(n => n && n.trim()).length ?? 0) > 0;
+  return config.isLiveReport || config.isGSTRReport || config.isPDFReport || config.customDownload || isMultiReport;
 }
 
 type DistributorSource = 'geographical' | 'sales';
@@ -135,6 +139,11 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
   // any report can opt in with monthLevelFilter.
   const useMonthPicker = Boolean(reportConfig.isGSTRReport || reportConfig.monthLevelFilter);
 
+  // Latest day a user may select: today minus dateOffsetDays (0/absent = today).
+  const latestSelectable = dayjs().subtract(
+    Math.max(0, Math.floor(reportConfig.dateOffsetDays ?? 0)), 'day'
+  );
+
   const formatPinned = reportConfig.isExcelOnly !== reportConfig.isCSVOnly;
   const showCsvOption = !formatPinned || reportConfig.isCSVOnly === true;
   const showExcelOption = !formatPinned || reportConfig.isExcelOnly === true;
@@ -176,8 +185,11 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
   // current month so the dates match what the picker displays before it's touched.
   useEffect(() => {
     const monthPicker = Boolean(reportConfig.isGSTRReport || reportConfig.monthLevelFilter);
-    setFromDate(monthPicker ? dayjs().startOf('month') : dayjs());
-    setToDate(monthPicker ? dayjs().endOf('month') : dayjs());
+    // Honour dateOffsetDays so the default range never starts out past the
+    // last selectable day (e.g. a report that only allows up to yesterday).
+    const latest = dayjs().subtract(Math.max(0, Math.floor(reportConfig.dateOffsetDays ?? 0)), 'day');
+    setFromDate(monthPicker ? latest.startOf('month') : latest);
+    setToDate(monthPicker ? latest.endOf('month') : latest);
     setDateFilterKey(prev => prev + 1);
   }, [reportConfig]);
 
@@ -844,8 +856,16 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
         ? { locationFilters: locationFilters.length > 0 ? locationFilters : undefined, userFilters: userFilters.length > 0 ? userFilters : undefined }
         : undefined;
 
-      const additionalFilters: Record<string, string[]> | undefined = distributorCodes.length > 0
-        ? { distributor_code: distributorCodes }
+      // A distributor-view report defaults to the session's own distributor when
+      // the user has picked none, matching the download path — otherwise these
+      // dropdowns offer values drawn from every distributor while the report
+      // that eventually runs is scoped to one.
+      const scopedCodes = distributorCodes.length > 0
+        ? distributorCodes
+        : defaultDistributorScope(reportConfig);
+
+      const additionalFilters: Record<string, string[]> | undefined = scopedCodes.length > 0
+        ? { distributor_code: scopedCodes }
         : undefined;
 
       // Other selected custom filters constrain the values returned for `key`.
@@ -965,8 +985,8 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
     setShowPreview(false);
     setSearchTextMap({});
     setCustomFilterSelectionOrder([]);
-    setFromDate(useMonthPicker ? dayjs().startOf('month') : dayjs());
-    setToDate(useMonthPicker ? dayjs().endOf('month') : dayjs());
+    setFromDate(useMonthPicker ? latestSelectable.startOf('month') : latestSelectable);
+    setToDate(useMonthPicker ? latestSelectable.endOf('month') : latestSelectable);
     setDateFilterKey(prev => prev + 1);
     // Re-populate type/division options
     setOptionsMap(prev => ({
@@ -1005,6 +1025,17 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
         }
       }
 
+      // Resolve the selected distributor's display name for the {distName} token
+      // in a report's downloadFilenameTemplate. The dropdown stores options as
+      // "Name (code)"; strip the trailing "(code)" to get just the name.
+      const distKey = reportConfig.newDistFilter ? 'distributor_code' : distributorFieldKey;
+      const selectedDistCode = distKey ? cleanFilters[distKey]?.[0] : undefined;
+      let distributorName: string | undefined;
+      if (distKey && selectedDistCode) {
+        const opt = optionsMap[distKey]?.find(o => o.value === selectedDistCode);
+        if (opt) distributorName = opt.label.replace(/\s*\([^)]*\)\s*$/, '').trim();
+      }
+
       await downloadReport({
         selectedReport: reportConfig,
         filters: cleanFilters,
@@ -1016,6 +1047,7 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
         customFilters: customFilters.map(f => f.alias),
         salesDrillDownPath,
         geoDrillDownPath,
+        distributorName,
       });
       showNotif('Downloaded successfully!', 'success');
     } catch (err) {
@@ -1071,6 +1103,7 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
     reportConfig.isLiveReport ? 'Live reports cannot be previewed. Kindly download the report to continue.'
     : reportConfig.isPDFReport ? 'PDF reports cannot be previewed. Kindly download the report to continue.'
     : reportConfig.isGSTRReport ? 'GSTR reports cannot be previewed. Kindly download the report to continue.'
+    : (reportConfig.reportNames?.length ?? 0) > 0 ? 'Multi-report downloads cannot be previewed. Kindly download the reports to continue.'
     : 'This report cannot be previewed. Kindly download the report to continue.';
 
   return (
@@ -1153,7 +1186,8 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
                   yearsRange={reportConfig.gstrYearsRange ?? 3} />
               ) : (
                 <NewDateFilter key={dateFilterKey} fromDate={fromDate} toDate={toDate}
-                  onFromChange={setFromDate} onToChange={setToDate} dateRangeAllowed={reportConfig.dateRangeAllowed} />
+                  onFromChange={setFromDate} onToChange={setToDate} dateRangeAllowed={reportConfig.dateRangeAllowed}
+                  dateOffsetDays={reportConfig.dateOffsetDays} />
               )}
             </div>
           )}
