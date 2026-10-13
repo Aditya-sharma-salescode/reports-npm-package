@@ -139,6 +139,11 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
   // any report can opt in with monthLevelFilter.
   const useMonthPicker = Boolean(reportConfig.isGSTRReport || reportConfig.monthLevelFilter);
 
+  // Latest day a user may select: today minus dateOffsetDays (0/absent = today).
+  const latestSelectable = dayjs().subtract(
+    Math.max(0, Math.floor(reportConfig.dateOffsetDays ?? 0)), 'day'
+  );
+
   const formatPinned = reportConfig.isExcelOnly !== reportConfig.isCSVOnly;
   const showCsvOption = !formatPinned || reportConfig.isCSVOnly === true;
   const showExcelOption = !formatPinned || reportConfig.isExcelOnly === true;
@@ -180,8 +185,11 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
   // current month so the dates match what the picker displays before it's touched.
   useEffect(() => {
     const monthPicker = Boolean(reportConfig.isGSTRReport || reportConfig.monthLevelFilter);
-    setFromDate(monthPicker ? dayjs().startOf('month') : dayjs());
-    setToDate(monthPicker ? dayjs().endOf('month') : dayjs());
+    // Honour dateOffsetDays so the default range never starts out past the
+    // last selectable day (e.g. a report that only allows up to yesterday).
+    const latest = dayjs().subtract(Math.max(0, Math.floor(reportConfig.dateOffsetDays ?? 0)), 'day');
+    setFromDate(monthPicker ? latest.startOf('month') : latest);
+    setToDate(monthPicker ? latest.endOf('month') : latest);
     setDateFilterKey(prev => prev + 1);
   }, [reportConfig]);
 
@@ -977,8 +985,8 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
     setShowPreview(false);
     setSearchTextMap({});
     setCustomFilterSelectionOrder([]);
-    setFromDate(useMonthPicker ? dayjs().startOf('month') : dayjs());
-    setToDate(useMonthPicker ? dayjs().endOf('month') : dayjs());
+    setFromDate(useMonthPicker ? latestSelectable.startOf('month') : latestSelectable);
+    setToDate(useMonthPicker ? latestSelectable.endOf('month') : latestSelectable);
     setDateFilterKey(prev => prev + 1);
     // Re-populate type/division options
     setOptionsMap(prev => ({
@@ -1178,7 +1186,8 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
                   yearsRange={reportConfig.gstrYearsRange ?? 3} />
               ) : (
                 <NewDateFilter key={dateFilterKey} fromDate={fromDate} toDate={toDate}
-                  onFromChange={setFromDate} onToChange={setToDate} dateRangeAllowed={reportConfig.dateRangeAllowed} />
+                  onFromChange={setFromDate} onToChange={setToDate} dateRangeAllowed={reportConfig.dateRangeAllowed}
+                  dateOffsetDays={reportConfig.dateOffsetDays} />
               )}
             </div>
           )}

@@ -53,6 +53,12 @@ export interface newReportConfig {
   isPDFReport?: boolean;
   /** e.g. "1 week" | "4 days" | "5 months" | "1 year" */
   dateRangeAllowed?: string;
+  /**
+   * Latest selectable day, counted back from today. 0 (or absent) allows today;
+   * 1 stops at yesterday (n-1), 2 at the day before, and so on. Use this for
+   * reports whose data is only complete once the day has closed.
+   */
+  dateOffsetDays?: number;
   isGSTRReport?: boolean;
   /**
    * Restricts the generic download menu to a single format. When neither is set

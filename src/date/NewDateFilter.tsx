@@ -103,9 +103,11 @@ interface NewDateFilterProps {
   onToChange: (d: Dayjs) => void;
   /** Max span a custom pick may cover, e.g. "1 day" | "1 week". Inclusive. */
   dateRangeAllowed?: string;
+  /** Days back from today the selectable window ends. 1 → yesterday (n-1). */
+  dateOffsetDays?: number;
 }
 
-export function NewDateFilter({ fromDate, toDate, onFromChange, onToChange, dateRangeAllowed }: NewDateFilterProps) {
+export function NewDateFilter({ fromDate, toDate, onFromChange, onToChange, dateRangeAllowed, dateOffsetDays }: NewDateFilterProps) {
   const [open, setOpen] = useState(false);
   const [activePreset, setActivePreset] = useState<string>('Custom Date Filter');
   const [hoverDate, setHoverDate] = useState<Date | null>(null);
@@ -126,13 +128,20 @@ export function NewDateFilter({ fromDate, toDate, onFromChange, onToChange, date
     maxToDate && dayjs(maxToDate).isSame(fromDate, 'day')
   );
 
-  // Disable the left calendar's next arrow only when it would navigate past the
-  // current (real) month — mirrors how MUI's StaticDatePicker handles maxDate/disableFuture.
+  // Latest selectable day. dateOffsetDays counts back from today, so 1 ends the
+  // window at yesterday; 0/absent keeps today selectable as before. This also
+  // closes the gap where future days inside the current month stayed clickable.
   const now = dayjs();
+  const offsetDays = Math.max(0, Math.floor(dateOffsetDays ?? 0));
+  const lastSelectable = now.subtract(offsetDays, 'day').endOf('day');
+
+  // Disable the next arrow once it would navigate past the last selectable month.
   const disableLeftNext =
-    leftYear > now.year() || (leftYear === now.year() && leftMonth >= now.month());
+    leftYear > lastSelectable.year() ||
+    (leftYear === lastSelectable.year() && leftMonth >= lastSelectable.month());
   const disableRightNext =
-    rightYear > now.year() || (rightYear === now.year() && rightMonth >= now.month());
+    rightYear > lastSelectable.year() ||
+    (rightYear === lastSelectable.year() && rightMonth >= lastSelectable.month());
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -166,6 +175,7 @@ export function NewDateFilter({ fromDate, toDate, onFromChange, onToChange, date
 
   function handleStartDayClick(date: Date) {
     const d = dayjs(date);
+    if (d.isAfter(lastSelectable, 'day')) return;
     onFromChange(d.startOf('day'));
 
     if (spanCap) {
@@ -185,6 +195,7 @@ export function NewDateFilter({ fromDate, toDate, onFromChange, onToChange, date
 
   function handleEndDayClick(date: Date) {
     const d = dayjs(date);
+    if (d.isAfter(lastSelectable, 'day')) return;
     // With a span cap the end can't exceed start + cap, and never precedes start.
     if (spanCap && maxToDate && d.isAfter(dayjs(maxToDate), 'day')) return;
     onToChange(d.endOf('day'));
@@ -197,6 +208,7 @@ export function NewDateFilter({ fromDate, toDate, onFromChange, onToChange, date
   // Single-day mode: one click pins both ends to the same day.
   function handleSingleDayClick(date: Date) {
     const d = dayjs(date);
+    if (d.isAfter(lastSelectable, 'day')) return;
     onFromChange(d.startOf('day'));
     onToChange(d.endOf('day'));
     setActivePreset('Custom Date Filter');
@@ -212,9 +224,11 @@ export function NewDateFilter({ fromDate, toDate, onFromChange, onToChange, date
     setRightMonth(to.month());
   }
 
+  // Presets end at the last selectable day, not today, so an offset config
+  // can't be bypassed by clicking one.
   const presets = [
-    { label: 'Last 7 days', from: dayjs().subtract(6, 'day').startOf('day'), to: dayjs().endOf('day') },
-    { label: 'Last 3 months', from: dayjs().subtract(3, 'month').startOf('day'), to: dayjs().endOf('day') },
+    { label: 'Last 7 days', from: lastSelectable.subtract(6, 'day').startOf('day'), to: lastSelectable },
+    { label: 'Last 3 months', from: lastSelectable.subtract(3, 'month').startOf('day'), to: lastSelectable },
     { label: 'Custom Date Filter', from: fromDate, to: toDate },
   ];
 
@@ -243,7 +257,7 @@ export function NewDateFilter({ fromDate, toDate, onFromChange, onToChange, date
                   if (p.label !== 'Custom Date Filter') {
                     applyPreset(p.label, p.from, p.to);
                   } else {
-                    applyPreset('Custom Date Filter', dayjs().startOf('day'), dayjs().endOf('day'));
+                    applyPreset('Custom Date Filter', lastSelectable.startOf('day'), lastSelectable);
                   }
                 }}
               >
@@ -264,6 +278,7 @@ export function NewDateFilter({ fromDate, toDate, onFromChange, onToChange, date
               onPrev={prevMonth}
               onNext={nextMonth}
               disableNext={disableLeftNext}
+              maxDate={lastSelectable.toDate()}
             />
             {!isSingleDay && (
               <Calendar
@@ -278,7 +293,11 @@ export function NewDateFilter({ fromDate, toDate, onFromChange, onToChange, date
                 onNext={nextRightMonth}
                 disableNext={disableRightNext}
                 minDate={fromDate.toDate()}
-                maxDate={maxToDate}
+                maxDate={
+                  maxToDate && dayjs(maxToDate).isBefore(lastSelectable, 'day')
+                    ? maxToDate
+                    : lastSelectable.toDate()
+                }
               />
             )}
           </div>
