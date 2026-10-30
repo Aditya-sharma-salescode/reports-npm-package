@@ -211,6 +211,8 @@ interface ReportCardProps {
 }
 
 function ReportCard({ config, isFav, onToggleFav, onSelect, cardRef }: ReportCardProps) {
+  const showDescription = config.showDescription === true;
+
   return (
     <div
       ref={cardRef}
@@ -221,7 +223,12 @@ function ReportCard({ config, isFav, onToggleFav, onSelect, cardRef }: ReportCar
         <ReportGlyph name={config.name} />
       </span>
 
-      <span className="sc-card-label">{config.name}</span>
+      <span className="sc-card-label">
+        {config.name}
+        {showDescription && config.description && (
+          <span className="sc-card-description">{config.description}</span>
+        )}
+      </span>
 
       <div className="sc-card-badges">
         {config.isLiveReport && <span className="sc-badge sc-badge-live">LIVE</span>}

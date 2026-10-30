@@ -16,6 +16,12 @@ export interface newReportConfig {
    */
   reportNames?: string[];
   description: string;
+  /**
+   * Render `description` under the report name on its tile. Off by default —
+   * the description has always been search-only, so showing it everywhere would
+   * change the look of existing dashboards.
+   */
+  showDescription?: boolean;
   templateUrl: string;
   filterConfiguration?: ReportTableConfiguration;
   salesHierarchyFilter?: SalesHierarchyFilter;
