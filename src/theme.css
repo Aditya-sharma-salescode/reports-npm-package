@@ -15,6 +15,11 @@
   --rui-accent-border: #99f6e4;                     /* hover/focus card border */
   --rui-accent-faint: rgba(0, 163, 146, 0.04);      /* outlined button hover */
   --rui-accent-selected: #e8f5f2;                   /* selected list item / calendar hover */
+  --rui-accent-hover: var(--brand-dark, #009180);   /* filled button hover (Download, Apply) */
+  --rui-accent-deep: #0D7A6A;                       /* chip remove (x) hover */
+  --rui-link-hover: #237C9D;                        /* Back link hover */
+  --rui-shadow-soft: rgba(15, 76, 67, 0.04);        /* card / search resting shadow */
+  --rui-shadow-hover: rgba(15, 76, 67, 0.08);       /* card hover shadow */
 }
 
 /* Shades with no shell variable of their own are mixed from --brand, only when
@@ -23,4 +28,8 @@
   --rui-accent-border: color-mix(in srgb, var(--brand, #00A392) 40%, white);
   --rui-accent-faint: color-mix(in srgb, var(--brand, #00A392) 4%, transparent);
   --rui-accent-selected: color-mix(in srgb, var(--brand, #00A392) 10%, white);
+  --rui-accent-deep: color-mix(in srgb, var(--brand-dark, #0D7A6A) 80%, black);
+  --rui-link-hover: var(--brand, #237C9D);
+  --rui-shadow-soft: color-mix(in srgb, var(--brand-dark, #0f4c43) 4%, transparent);
+  --rui-shadow-hover: color-mix(in srgb, var(--brand-dark, #0f4c43) 8%, transparent);
 }

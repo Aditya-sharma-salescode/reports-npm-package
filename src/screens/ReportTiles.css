@@ -41,7 +41,7 @@
   border-radius: 10px;
   cursor: pointer;
   color: #6b7280;
-  box-shadow: 0 1px 2px rgba(15, 76, 67, 0.04);
+  box-shadow: 0 1px 2px var(--rui-shadow-soft);
   transition: border-color 0.14s, color 0.14s;
 }
 .sc-search-toggle:hover {
@@ -59,7 +59,7 @@
   padding: 0 14px;
   height: 44px;
   width: 320px;
-  box-shadow: 0 1px 2px rgba(15, 76, 67, 0.04);
+  box-shadow: 0 1px 2px var(--rui-shadow-soft);
 }
 
 .sc-search-box-icon {
@@ -125,13 +125,13 @@
   border: 1px solid #e5e7eb;
   border-radius: 14px;
   padding: 14px 14px 14px 16px;
-  box-shadow: 0 1px 2px rgba(15, 76, 67, 0.04);
+  box-shadow: 0 1px 2px var(--rui-shadow-soft);
   cursor: pointer;
   transition: border-color 0.14s, box-shadow 0.14s;
 }
 .sc-card:hover {
   border-color: var(--rui-accent-border);
-  box-shadow: 0 6px 18px rgba(15, 76, 67, 0.08);
+  box-shadow: 0 6px 18px var(--rui-shadow-hover);
 }
 
 .sc-card-chip {

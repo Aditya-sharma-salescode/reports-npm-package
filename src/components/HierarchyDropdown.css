@@ -185,4 +185,4 @@
   cursor: pointer;
   font-weight: 500;
 }
-.sc-btn-apply-sm:hover { background: #009180; }
+.sc-btn-apply-sm:hover { background: var(--rui-accent-hover); }

@@ -94,7 +94,7 @@
 
 .sc-gstr-cell-selected {
   color: var(--rui-accent);
-  background: #e8f5f3;
+  background: var(--brand-tint, #e8f5f3);
   border-color: var(--rui-accent);
   font-weight: 600;
 }

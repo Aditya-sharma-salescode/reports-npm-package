@@ -45,7 +45,7 @@
   padding: 0;
   transition: color 0.2s;
 }
-.sc-back-btn:hover { color: #237C9D; }
+.sc-back-btn:hover { color: var(--rui-link-hover); }
 
 .sc-report-title-wrap {
   position: relative;
@@ -154,7 +154,7 @@
   background: var(--rui-accent-soft);
 }
 .sc-report-switcher-item.active {
-  background: #e6faf5;
+  background: var(--brand-tint, #e6faf5);
   font-weight: 500;
 }
 .sc-report-switcher-dash {
@@ -261,7 +261,7 @@
   box-shadow: none;
   transition: background 0.15s;
 }
-.sc-btn-download:hover:not(:disabled) { background: #009180; }
+.sc-btn-download:hover:not(:disabled) { background: var(--rui-accent-hover); }
 .sc-btn-download:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .sc-download-spinner {
@@ -317,7 +317,7 @@
   align-items: center;
   gap: 4px;
   padding: 0 12px;
-  background: #E6FBF8;
+  background: var(--brand-tint, #E6FBF8);
   border-radius: 20px;
   font-size: 13px;
   font-weight: 500;
@@ -338,7 +338,7 @@
   height: 18px;
   margin-left: 2px;
 }
-.sc-chip-remove:hover { color: #0D7A6A; }
+.sc-chip-remove:hover { color: var(--rui-accent-deep); }
 
 /* ─── Content / Preview area (matches original mdm-reports-left-section) ───── */
 .sc-report-content {
@@ -524,13 +524,13 @@
 
 .sc-cal-day.selected-start,
 .sc-cal-day.selected-end {
-  background: #00796B;
+  background: var(--brand-dark, #00796B);
   color: #fff;
   font-weight: 600;
 }
 
 .sc-cal-day.in-range {
-  background: #e0f2f1;
+  background: var(--brand-tint, #e0f2f1);
   border-radius: 0;
 }
 

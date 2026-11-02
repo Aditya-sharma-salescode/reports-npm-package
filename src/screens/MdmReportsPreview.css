@@ -87,7 +87,7 @@
   width: 24px;
   height: 24px;
   border: 3px solid #e2e8f0;
-  border-top-color: #1ab394;
+  border-top-color: var(--brand, #1ab394);
   border-radius: 50%;
   animation: sc-spin 0.7s linear infinite;
 }
@@ -212,7 +212,7 @@
   width: 16px;
   height: 16px;
   border: 2px solid #e2e8f0;
-  border-top-color: #1C7EA0;
+  border-top-color: var(--brand, #1C7EA0);
   border-radius: 50%;
   animation: sc-spin 0.7s linear infinite;
 }
@@ -240,7 +240,7 @@
   min-width: 32px;
   height: 32px;
   padding: 0 4px;
-  background-color: #1C7EA0;
+  background-color: var(--brand, #1C7EA0);
   color: #ffffff;
   border-radius: 50%;
   display: flex;
