@@ -1014,8 +1014,9 @@ export function MdmReportsNewFilter({ reportConfig, onBack, reportCards, onSelec
       if (geoConfig?.valueFilterField) excludeKeys.add(geoConfig.valueFilterField);
       (salesConfig?.hierarchyOrder || []).forEach(l => excludeKeys.add(l));
       geoHierarchyOrder.forEach(l => excludeKeys.add(l));
-      excludeKeys.add('distributor_type');
-      excludeKeys.add('distributor_division');
+      // distributor_type / distributor_division intentionally not excluded —
+      // they reach the payload like any other custom filter (preview already
+      // sends them, so this keeps download consistent).
 
       const cleanFilters: Record<string, string[]> = {};
       for (const [key, values] of Object.entries(filters)) {

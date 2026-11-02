@@ -203,9 +203,9 @@ function buildFiltersMap(
   if (selectedReport.distributorFilter?.field)
     excludeKeys.add(selectedReport.distributorFilter.field);
 
-  // Exclude distributor_type and distributor_division (internal filter state)
-  excludeKeys.add('distributor_type');
-  excludeKeys.add('distributor_division');
+  // distributor_type / distributor_division are no longer excluded: the
+  // client-side narrowing they existed for is gone, and when a report defines
+  // them they arrive as ordinary custom filters that belong in the payload.
   excludeKeys.add('distributor_code');
   excludeKeys.add('distributorCode');
 
