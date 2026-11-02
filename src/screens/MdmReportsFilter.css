@@ -81,8 +81,8 @@
   transition: background 0.15s;
 }
 .sc-title-chevron.open {
-  background: #169C87;
-  border-color: #169C87;
+  background: var(--rui-accent-strong);
+  border-color: var(--rui-accent-strong);
   color: #fff;
 }
 
@@ -125,7 +125,7 @@
 .sc-report-switcher-group-name {
   font-size: 14px;
   font-weight: 600;
-  color: #169C87;
+  color: var(--rui-accent-strong);
 }
 .sc-report-switcher-group-chevron {
   display: flex;
@@ -134,7 +134,7 @@
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: #169C87;
+  background: var(--rui-accent-strong);
   color: #fff;
   font-size: 10px;
 }
@@ -144,14 +144,14 @@
   gap: 8px;
   padding: 7px 16px 7px 24px;
   font-size: 13px;
-  color: #169C87;
+  color: var(--rui-accent-strong);
   cursor: pointer;
   transition: background 0.1s;
   border-radius: 6px;
   margin: 0 8px;
 }
 .sc-report-switcher-item:hover {
-  background: #f0fdf9;
+  background: var(--rui-accent-soft);
 }
 .sc-report-switcher-item.active {
   background: #e6faf5;
@@ -216,13 +216,13 @@
   margin-left: 8px;
 }
 
-/* Preview button — outlined teal (matches original MUI Button) */
+/* Preview button — outlined accent (matches original MUI Button) */
 .sc-btn-preview {
   padding: 2px 8px;
-  border: 1.5px solid #00A392;
+  border: 1.5px solid var(--rui-accent);
   border-radius: 8px;
   background: #fff;
-  color: #00A392;
+  color: var(--rui-accent);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -230,7 +230,7 @@
   white-space: nowrap;
   transition: background 0.15s;
 }
-.sc-btn-preview:hover { background: rgba(0,163,146,0.04); }
+.sc-btn-preview:hover { background: var(--rui-accent-faint); }
 .sc-btn-preview:disabled {
   border-color: #ccc;
   color: #7c7c7c;
@@ -251,7 +251,7 @@
   padding: 6px 12px;
   border: none;
   border-radius: 8px;
-  background: #00A392;
+  background: var(--rui-accent);
   color: #fff;
   font-size: 14px;
   font-weight: 600;
@@ -299,7 +299,7 @@
   cursor: pointer;
   transition: background 0.15s;
 }
-.sc-download-menu-item:hover { background: #f0fdf9; }
+.sc-download-menu-item:hover { background: var(--rui-accent-soft); }
 
 /* ─── Filter chips (matches original MUI Chip) ──────────────────────────────── */
 .sc-filter-chips {
@@ -321,14 +321,14 @@
   border-radius: 20px;
   font-size: 13px;
   font-weight: 500;
-  color: #169C87;
+  color: var(--rui-accent-strong);
   height: 28px;
 }
-.sc-chip-key { font-weight: 400; color: #169C87; }
+.sc-chip-key { font-weight: 400; color: var(--rui-accent-strong); }
 .sc-chip strong { font-weight: 600; }
 .sc-chip-remove {
   cursor: pointer;
-  color: #169C87;
+  color: var(--rui-accent-strong);
   font-size: 18px;
   line-height: 1;
   display: flex;
@@ -375,7 +375,7 @@
   box-shadow: 0 4px 16px rgba(0,0,0,0.15);
   animation: sc-slide-in 0.2s ease;
 }
-.sc-notification.success { background: #00A392; }
+.sc-notification.success { background: var(--rui-accent); }
 .sc-notification.error { background: #dc2626; }
 
 @keyframes sc-slide-in {
@@ -402,7 +402,7 @@
   white-space: nowrap;
 }
 .sc-date-range-btn:hover { border-color: #999; }
-.sc-date-range-btn.open { border-color: #00A392; }
+.sc-date-range-btn.open { border-color: var(--rui-accent); }
 
 .sc-date-range-value {
   font-weight: 500;
@@ -443,10 +443,10 @@
 }
 .sc-preset-item:hover { background: #f5f5f5; }
 .sc-preset-item.active {
-  background: #e8f5f2;
-  color: #00A392;
+  background: var(--rui-accent-selected);
+  color: var(--rui-accent);
   font-weight: 600;
-  border-left: 3px solid #00A392;
+  border-left: 3px solid var(--rui-accent);
 }
 
 /* Calendars side-by-side */
@@ -519,7 +519,7 @@
   cursor: not-allowed;
   pointer-events: none;
 }
-.sc-cal-day:not(.empty):not(.disabled):hover { background: #e8f5f2; }
+.sc-cal-day:not(.empty):not(.disabled):hover { background: var(--rui-accent-selected); }
 .sc-cal-day.today { font-weight: 700; }
 
 .sc-cal-day.selected-start,

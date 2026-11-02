@@ -21,7 +21,7 @@
 }
 
 .sc-gstr-trigger:hover:not(:disabled) {
-  border-color: #00a392;
+  border-color: var(--rui-accent);
 }
 
 .sc-gstr-trigger:disabled {
@@ -93,9 +93,9 @@
 }
 
 .sc-gstr-cell-selected {
-  color: #00a392;
+  color: var(--rui-accent);
   background: #e8f5f3;
-  border-color: #00a392;
+  border-color: var(--rui-accent);
   font-weight: 600;
 }
 

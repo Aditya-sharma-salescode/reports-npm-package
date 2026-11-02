@@ -44,7 +44,7 @@
 
 .sc-fu-field input:focus {
   outline: none;
-  border-color: #00A392;
+  border-color: var(--rui-accent);
 }
 
 .sc-fu-wide input {

@@ -45,8 +45,8 @@
   transition: border-color 0.14s, color 0.14s;
 }
 .sc-search-toggle:hover {
-  border-color: #99f6e4;
-  color: #0d9488;
+  border-color: var(--rui-accent-border);
+  color: var(--rui-accent-ink);
 }
 
 .sc-search-box {
@@ -54,7 +54,7 @@
   align-items: center;
   gap: 9px;
   background: #fff;
-  border: 1px solid #99f6e4;
+  border: 1px solid var(--rui-accent-border);
   border-radius: 10px;
   padding: 0 14px;
   height: 44px;
@@ -130,7 +130,7 @@
   transition: border-color 0.14s, box-shadow 0.14s;
 }
 .sc-card:hover {
-  border-color: #99f6e4;
+  border-color: var(--rui-accent-border);
   box-shadow: 0 6px 18px rgba(15, 76, 67, 0.08);
 }
 
@@ -139,8 +139,8 @@
   width: 44px;
   height: 44px;
   border-radius: 12px;
-  background: #e7f6ef;
-  color: #059669;
+  background: var(--rui-chip-bg);
+  color: var(--rui-chip-fg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -244,7 +244,7 @@
   padding: 0;
   transition: color 0.12s;
 }
-.sc-card-download:hover { color: #0d9488; }
+.sc-card-download:hover { color: var(--rui-accent-ink); }
 
 /* ─── Empty state ────────────────────────────────────────────────────────────── */
 .sc-empty {

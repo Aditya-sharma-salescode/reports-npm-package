@@ -1,0 +1,26 @@
+/* ─── Brand tokens ─────────────────────────────────────────────────────────────
+   The platform shell exposes its brand on <html> as --brand, --brand-dark and
+   --brand-tint (set on the Coke platform portal, where the CMS can change them).
+   Every accent colour in reports-ui reads these tokens, so the module follows
+   the shell's brand. With no shell brand set, each token falls back to the
+   original teal, so other hosts render exactly as before.
+   A host can also set any --rui-* token itself to override a single shade. */
+:root {
+  --rui-accent: var(--brand, #00A392);            /* buttons, focus borders, checks */
+  --rui-accent-strong: var(--brand-dark, #169C87); /* filled pills, chip text */
+  --rui-accent-ink: var(--brand-dark, #0d9488);    /* hover text/icons */
+  --rui-accent-soft: var(--brand-tint, #f0fdf9);   /* hover/active row surface */
+  --rui-chip-bg: var(--brand-tint, #e7f6ef);       /* report tile icon chip */
+  --rui-chip-fg: var(--brand-dark, #059669);
+  --rui-accent-border: #99f6e4;                     /* hover/focus card border */
+  --rui-accent-faint: rgba(0, 163, 146, 0.04);      /* outlined button hover */
+  --rui-accent-selected: #e8f5f2;                   /* selected list item / calendar hover */
+}
+
+/* Shades with no shell variable of their own are mixed from --brand, only when
+   the shell marks a branded portal, so the teal defaults above stay exact. */
+:root[data-portal] {
+  --rui-accent-border: color-mix(in srgb, var(--brand, #00A392) 40%, white);
+  --rui-accent-faint: color-mix(in srgb, var(--brand, #00A392) 4%, transparent);
+  --rui-accent-selected: color-mix(in srgb, var(--brand, #00A392) 10%, white);
+}

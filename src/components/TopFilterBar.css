@@ -31,7 +31,7 @@
 }
 
 .sc-topbar-radio {
-  accent-color: #00A392;
+  accent-color: var(--rui-accent);
   width: 16px;
   height: 16px;
   cursor: pointer;
