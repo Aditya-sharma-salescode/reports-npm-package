@@ -75,6 +75,13 @@ export interface newReportConfig {
    * a from/to date range covering that whole month.
    */
   monthLevelFilter?: boolean;
+  /**
+   * Latest selectable month in the month/year picker, counted back from the
+   * current month. 0 (or absent) allows the current month; 1 stops at last
+   * month — for reports whose data is only complete once the month has closed.
+   * Mirrors `dateOffsetDays` on the date-range filter.
+   */
+  monthOffsetCount?: number;
   customDownload?: boolean;
   customDateRangeAllowed?: string;
   showAdditionalFilters?: boolean;

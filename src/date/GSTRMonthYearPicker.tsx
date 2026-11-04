@@ -18,6 +18,8 @@ interface GSTRMonthYearPickerProps {
   onChange: (month: number, year: number) => void;
   /** How many years back to show, inclusive of the current year. */
   yearsRange?: number;
+  /** Months back from the current month the window ends. 1 → last month. */
+  monthOffsetCount?: number;
   disabled?: boolean;
 }
 
@@ -32,25 +34,34 @@ export function GSTRMonthYearPicker({
   selectedYear,
   onChange,
   yearsRange = 3,
+  monthOffsetCount,
   disabled = false,
 }: GSTRMonthYearPickerProps) {
   const today = useMemo(() => dayjs(), []);
+  // Latest selectable month. monthOffsetCount counts back from the current
+  // month, so 1 ends the window at last month; 0/absent keeps today's month.
+  const lastMonth = useMemo(
+    () => today.subtract(Math.max(0, Math.floor(monthOffsetCount ?? 0)), 'month').startOf('month'),
+    [today, monthOffsetCount]
+  );
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
 
   // Default to the current month/year so the report is downloadable immediately,
   // matching how the date-range filter starts pre-filled.
-  const month = selectedMonth ?? today.month();
-  const year = selectedYear ?? today.year();
+  const month = selectedMonth ?? lastMonth.month();
+  const year = selectedYear ?? lastMonth.year();
 
   const years = useMemo(() => {
-    const currentYear = today.year();
+    // Anchor on the last selectable month's year: with an offset set in January
+    // the newest allowed year is the previous one.
+    const newestYear = lastMonth.year();
     const list: number[] = [];
-    for (let y = currentYear - yearsRange + 1; y <= currentYear; y++) {
+    for (let y = newestYear - yearsRange + 1; y <= newestYear; y++) {
       list.push(y);
     }
     return list;
-  }, [today, yearsRange]);
+  }, [lastMonth, yearsRange]);
 
   // Close on outside click, matching the other dropdowns in the filter bar.
   useEffect(() => {
@@ -64,7 +75,8 @@ export function GSTRMonthYearPicker({
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
-  const isMonthDisabled = (m: number) => year === today.year() && m > today.month();
+  const isMonthDisabled = (m: number) =>
+    year > lastMonth.year() || (year === lastMonth.year() && m > lastMonth.month());
 
   const handleMonthSelect = (m: number) => {
     if (isMonthDisabled(m)) return;
@@ -73,8 +85,9 @@ export function GSTRMonthYearPicker({
   };
 
   const handleYearSelect = (y: number) => {
-    // Selecting the current year can strand the month in the future — clamp it.
-    const nextMonth = y === today.year() && month > today.month() ? today.month() : month;
+    // Switching year can strand the month past the cutoff — clamp it back.
+    const nextMonth =
+      y === lastMonth.year() && month > lastMonth.month() ? lastMonth.month() : month;
     onChange(nextMonth, y);
   };
 
