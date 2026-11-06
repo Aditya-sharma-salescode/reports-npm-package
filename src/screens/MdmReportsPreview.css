@@ -223,6 +223,78 @@
   gap: 8px;
 }
 
+/* Rows-per-page selector in the pagination footer. */
+.sc-rows-per-page {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 4px;
+  white-space: nowrap;
+}
+
+.sc-rows-per-page-label {
+  font-size: 13px;
+  color: #666666;
+}
+
+.sc-rows-per-page-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 68px;
+  padding: 6px 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333333;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.sc-rows-per-page-trigger:hover:not(:disabled),
+.sc-rows-per-page-trigger.open { border-color: #00a392; }
+.sc-rows-per-page-trigger:disabled { color: #cccccc; cursor: default; }
+.sc-rows-per-page-trigger svg { transition: transform 0.15s; }
+.sc-rows-per-page-trigger.open svg { transform: rotate(180deg); }
+
+/* Opens upward — the control sits at the bottom of the page. */
+.sc-rows-per-page-menu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  z-index: 1300;
+  display: flex;
+  flex-direction: column;
+  min-width: 88px;
+  padding: 6px;
+  background: #ffffff;
+  border: 1px solid #e8e8e8;
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+
+.sc-rows-per-page-option {
+  padding: 9px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333333;
+  text-align: center;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.sc-rows-per-page-option:hover { background: #f5f5f5; }
+.sc-rows-per-page-option.selected {
+  color: #00a392;
+  font-weight: 700;
+  background: #e8f5f3;
+}
+
 .sc-page-btn {
   padding: 6px 12px;
   border: none;
