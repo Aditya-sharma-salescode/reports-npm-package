@@ -9,7 +9,9 @@ import { applyCustomPayloadToMap, type newReportConfig } from '../types/mdmRepor
 import type { FilterOption, DrillDownPathItem, ColumnOption } from '../services/types';
 import './MdmReportsPreview.css';
 
-const PAGE_SIZE = 30;
+const DEFAULT_PAGE_SIZE = 30;
+/** Rows-per-page choices offered under the preview table. */
+const PAGE_SIZE_OPTIONS = [10, 25, 30, 50, 100];
 
 interface MdmReportsPreviewProps {
   reportConfig: newReportConfig;
@@ -61,6 +63,9 @@ export function MdmReportsPreview({
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [pageSizeOpen, setPageSizeOpen] = useState(false);
+  const pageSizeRef = useRef<HTMLDivElement>(null);
   const [hasMore, setHasMore] = useState(false);
   const lastRequestIdRef = useRef(0);
   const pageRowCountsRef = useRef<Record<number, number>>({});
@@ -79,6 +84,27 @@ export function MdmReportsPreview({
     setPage(1);
     pageRowCountsRef.current = {};
   }, [filters, fromDate, toDate, salesDrillDownPath, geoDrillDownPath]);
+
+  // Close the rows-per-page menu on outside click, like the filter dropdowns.
+  useEffect(() => {
+    if (!pageSizeOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (pageSizeRef.current && !pageSizeRef.current.contains(e.target as Node)) {
+        setPageSizeOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [pageSizeOpen]);
+
+  // Changing rows-per-page re-paginates from the start: the current page number
+  // may not exist at the new size, and cached per-page counts no longer apply.
+  function handlePageSizeChange(size: number) {
+    if (size === pageSize) return;
+    pageRowCountsRef.current = {};
+    setPageSize(size);
+    setPage(1);
+  }
 
   const loadData = useCallback(
     async (p: number) => {
@@ -183,7 +209,7 @@ export function MdmReportsPreview({
           getAPI: reportConfig.getAPI,
           report: reportConfig.reportName,
           page: p,
-          pageSize: PAGE_SIZE,
+          pageSize,
           filters: Object.keys(apiFilters).length > 0 ? apiFilters : undefined,
           commaSeparatedFilters,
           distributorFilter: distributorFilterPayload,
@@ -206,7 +232,7 @@ export function MdmReportsPreview({
           const items = data?.items ?? data?.data ?? [];
           setRows(items);
           setTotal(data?.total ?? 0);
-          setHasMore((data?.total ?? 0) > p * PAGE_SIZE && p < (data?.totalPages ?? 1));
+          setHasMore((data?.total ?? 0) > p * pageSize && p < (data?.totalPages ?? 1));
           pageRowCountsRef.current[p] = items.length;
         }
       } catch (err) {
@@ -221,18 +247,18 @@ export function MdmReportsPreview({
         }
       }
     },
-    [reportConfig, fromDate, toDate, filters, salesDrillDownPath, geoDrillDownPath, customFilters, showPreview, isNoPreviewReport]
+    [reportConfig, fromDate, toDate, filters, salesDrillDownPath, geoDrillDownPath, customFilters, showPreview, isNoPreviewReport, pageSize]
   );
 
+  // One fetch effect, not two: `loadData` already changes identity whenever any
+  // of its inputs (filters, dates, pageSize, …) change, so keying on both it and
+  // `page` covers every case. Two separate effects fired twice for a single
+  // change that moved both — the request-id guard discarded the loser, but the
+  // duplicate request still went out.
   useEffect(() => {
     loadData(page);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadData]);
-
-  useEffect(() => {
-    loadData(page);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+  }, [loadData, page]);
 
   const displayColumns: { alias: string; label: string }[] =
     columns.length > 0
@@ -248,16 +274,15 @@ export function MdmReportsPreview({
   // Pagination display: X-Y of Z
   const { start, end } = useMemo(() => {
     const rowCount = loading
-      ? (pageRowCountsRef.current[page] ?? PAGE_SIZE)
+      ? (pageRowCountsRef.current[page] ?? pageSize)
       : rows.length;
     if (rowCount === 0) return { start: 0, end: 0 };
     return {
-      start: (page - 1) * PAGE_SIZE + 1,
-      end: (page - 1) * PAGE_SIZE + rowCount,
+      start: (page - 1) * pageSize + 1,
+      end: (page - 1) * pageSize + rowCount,
     };
-  }, [page, rows.length, loading]);
+  }, [page, rows.length, loading, pageSize]);
 
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const fileIcon = (
     <svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="#bbb" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -429,6 +454,34 @@ export function MdmReportsPreview({
         </div>
 
         <div className="sc-preview-pagination-right">
+          <div className="sc-rows-per-page" ref={pageSizeRef}>
+            <span className="sc-rows-per-page-label">Rows per page:</span>
+            <button
+              type="button"
+              className={`sc-rows-per-page-trigger${pageSizeOpen ? ' open' : ''}`}
+              disabled={loading}
+              onClick={() => setPageSizeOpen(o => !o)}
+            >
+              <span>{pageSize}</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="18 15 12 9 6 15" />
+              </svg>
+            </button>
+            {pageSizeOpen && (
+              <div className="sc-rows-per-page-menu">
+                {PAGE_SIZE_OPTIONS.map(n => (
+                  <button
+                    key={n}
+                    type="button"
+                    className={`sc-rows-per-page-option${n === pageSize ? ' selected' : ''}`}
+                    onClick={() => { handlePageSizeChange(n); setPageSizeOpen(false); }}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <button
             className="sc-page-btn"
             disabled={page <= 1 || loading}
