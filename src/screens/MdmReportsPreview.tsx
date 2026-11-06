@@ -63,7 +63,12 @@ export function MdmReportsPreview({
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  // Rows-per-page selector is on unless a report explicitly turns it off.
+  const showRowsPerPage = reportConfig.showRowsPerPage !== false;
+  const [pageSizeState, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  // With the selector hidden, always fetch the default size — never a stale
+  // value the user can no longer see or change.
+  const pageSize = showRowsPerPage ? pageSizeState : DEFAULT_PAGE_SIZE;
   const [pageSizeOpen, setPageSizeOpen] = useState(false);
   const pageSizeRef = useRef<HTMLDivElement>(null);
   const [hasMore, setHasMore] = useState(false);
@@ -454,6 +459,7 @@ export function MdmReportsPreview({
         </div>
 
         <div className="sc-preview-pagination-right">
+          {showRowsPerPage && (
           <div className="sc-rows-per-page" ref={pageSizeRef}>
             <span className="sc-rows-per-page-label">Rows per page:</span>
             <button
@@ -482,6 +488,7 @@ export function MdmReportsPreview({
               </div>
             )}
           </div>
+          )}
           <button
             className="sc-page-btn"
             disabled={page <= 1 || loading}

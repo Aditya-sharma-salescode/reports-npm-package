@@ -35,6 +35,12 @@ export interface newReportConfig {
   showDistributorType?: boolean;
   showDistributorDivision?: boolean;
   shouldShowCustomFilters?: boolean;
+  /**
+   * Show the rows-per-page selector under the preview table. Defaults to true;
+   * set false to pin the preview to its default page size and hide the control
+   * (a kill switch if the per-page fetching misbehaves for a report).
+   */
+  showRowsPerPage?: boolean;
   columnsToHide?: string[];
   filtersToHide?: string[];
   /**
