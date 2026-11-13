@@ -406,7 +406,7 @@ export function MdmReportsPreview({
             <div className="sc-preview-spinner" />
             <div className="sc-preview-loading-text">Loading data...</div>
           </div>
-        ) : rows.length === 0 ? (
+        ) : rows.length === 0 && displayColumns.length === 0 ? (
           <div className="sc-preview-empty-state">
             <div className="sc-preview-empty-icon">{fileIcon}</div>
             <h5 className="sc-preview-empty-title">No data found</h5>
@@ -425,6 +425,15 @@ export function MdmReportsPreview({
                 </tr>
               </thead>
               <tbody>
+                {rows.length === 0 && (
+                  <tr>
+                    <td className="sc-preview-td sc-preview-td-empty" colSpan={displayColumns.length}>
+                      <div className="sc-preview-empty-icon">{fileIcon}</div>
+                      <h5 className="sc-preview-empty-title">No data found</h5>
+                      <p className="sc-preview-empty-sub">Try adjusting your filters or date range</p>
+                    </td>
+                  </tr>
+                )}
                 {rows.map((row, rowIdx) => (
                   <tr
                     key={rowIdx}

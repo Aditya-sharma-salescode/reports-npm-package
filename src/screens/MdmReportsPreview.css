@@ -323,3 +323,11 @@
   cursor: default;
   flex-shrink: 0;
 }
+
+.sc-preview-td-empty {
+  text-align: center;
+  white-space: normal;
+  max-width: none;
+  padding: 80px 10px;
+  border: none;
+}
